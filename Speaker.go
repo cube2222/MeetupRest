@@ -36,12 +36,22 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	q := datastore.NewQuery("Speaker")
 
-	name 	:= params["Name"]
-	surname := params["Surname"]
-	email 	:= params["Email"]
+	if name, ok := params["Name"]; ok == true {
+		q = q.Filter("Name =", name)
+	}
+	
+	if surname, ok := params["Surname"]; ok == true {
+		q = q.Filter("Surname =", surname)
+	}
 
-	// Fillter Query
+	email, ok := params["Email"]; ok == true {
+		q = q.Filter("Email", email)
+	}
 
-	q := datastore.NewQuery("Speaker").Filter("Name =", name).Filter("Surname =", surname).Filter("Email =",)
+	t := q.Run(ctx)
+	
+	
+
 }
