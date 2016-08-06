@@ -26,7 +26,7 @@ func GetSpeakerHandler() http.Handler {
 	return m
 }
 
-func getSpeakerHandler(w http.ResponseWriter, r *http.Request) {
+func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
@@ -35,7 +35,13 @@ func getSpeakerHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
-	if name, ok := params["name"]; ok == true {
 
-	}
+
+	name 	:= params["Name"]
+	surname := params["Surname"]
+	email 	:= params["Email"]
+
+	// Fillter Query
+
+	q := datastore.NewQuery("Speaker").Filter("Name =", name).Filter("Surname =", surname).Filter("Email =",)
 }
