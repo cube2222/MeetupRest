@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"google.golang.org/cloud/datastore"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,25 +18,17 @@ type Human struct {
 }
 
 func init() {
-	ctx := context.Background()
-
-	dsClient, err := datastore.NewClient(ctx, "meetuprest")
-	if err != nil {
-		log.Errorf(ctx, "Could not create Datastore Client:", err)
-	}
 
 	m := mux.NewRouter()
-	m.Handle("/{name}/{age}", dsHandler{dsClient, ctx})
+	m.Handle("/{name}/{age}", dsHandler{})
 	http.Handle("/", m)
 }
 
 type dsHandler struct {
-	dsClient *datastore.Client
-	ctx      context.Context
 }
 
 func (h dsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	aectx := appengine.NewContext(r)
+	ctx := appengine.NewContext(r)
 	variables := mux.Vars(r)
 	e := &Human{}
 
@@ -44,13 +36,13 @@ func (h dsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	age, _ := strconv.Atoi(variables["age"])
 	e.Age = age
 
-	k := datastore.NewKey(h.ctx, "People", "", 0, nil)
-	newCtx, _ := context.WithTimeout(h.ctx, time.Second*2)
-	id, err := h.dsClient.Put(newCtx, k, e)
+	k := datastore.NewKey(ctx, "People", "", 0, nil)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	id, err := datastore.Put(newCtx, k, e)
 	if err != nil {
-		log.Errorf(aectx, "Can't create datastore object: %v", err)
+		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		return
 	}
 
-	fmt.Fprintf(w, "Your key: %v", id.ID())
+	fmt.Fprintf(w, "Your key: %v", id.IntID())
 }
