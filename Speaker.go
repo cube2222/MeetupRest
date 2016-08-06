@@ -9,7 +9,7 @@ import (
 	"fmt"
 )
 
-type Author struct {
+type Speaker struct {
 	Name          string
 	Surname       string
 	About         string
@@ -18,7 +18,7 @@ type Author struct {
 	Presentations []string
 }
 
-func GetAuthorHandler() http.Handler {
+func GetSpeakerHandler() http.Handler {
 	m := mux.NewRouter()
 	m.HandleFunc(/...)
 	m.Methods("GET").HandleFunc("/author/")
@@ -26,7 +26,7 @@ func GetAuthorHandler() http.Handler {
 	return m
 }
 
-func getAuthorHandler(w http.ResponseWriter, r *http.Request) {
+func getSpeakerHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
