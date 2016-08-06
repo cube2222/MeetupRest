@@ -1,17 +1,26 @@
-package hello
+package MeetupRest
 
 import (
-    "fmt"
-    "github.com/gorilla/mux"
-    "net/http"
+	"context"
+	"fmt"
+	"github.com/gorilla/mux"
+	"google.golang.org/cloud/datastore"
+	"net/http"
 )
 
 func init() {
-    m := mux.NewRouter()
-    m.HandleFunc("/", handler)
-    http.Handle("/", m)
+	ctx := context.Background()
+
+	m := mux.NewRouter()
+	m.HandleFunc("/", handler)
+	http.Handle("/", m)
+
+	dsClient, err := datastore.NewClient(ctx, "meetuprest")
+	if err != nil {
+
+	}
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprint(w, "Hello, world from gorilla!!!")
+	fmt.Fprint(w, "Hello, world from gorilla!!!")
 }
