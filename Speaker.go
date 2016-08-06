@@ -7,6 +7,10 @@ import (
 	"net/url"
 	"google.golang.org/appengine/log"
 	"fmt"
+	"google.golang.org/appengine/datastore"
+	"encoding/json"
+	"io"
+	"bytes"
 )
 
 type Speaker struct {
@@ -32,11 +36,12 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		log.Errorf(ctx, "Can't parse query: %v", err)
+		// TODO: http code
 		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
 
-	q := datastore.NewQuery("Speaker")
+	q := datastore.NewQuery("Speaker").Limit(1)
 
 	if name, ok := params["Name"]; ok == true {
 		q = q.Filter("Name =", name)
@@ -46,12 +51,30 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("Surname =", surname)
 	}
 
-	email, ok := params["Email"]; ok == true {
-		q = q.Filter("Email", email)
+	if email, ok := params["Email"]; ok == true {
+		q = q.Filter("Email =", email)
 	}
 
 	t := q.Run(ctx)
-	
-	
 
+	mySpeaker := Speaker{}
+	_, err = t.Next(&mySpeaker)
+	if err == datastore.Done {
+		fmt.Fprint(w, "No speaker found.")
+		return
+	}
+	if err != nil {
+		log.Errorf(ctx, "Can't get speaker: %v", err)
+		// TODO: http code
+		fmt.Fprintf(w, "Can't get speaker: %v", err)
+		return
+	}
+	data, err := json.Marshal(&mySpeaker)
+	if err != nil {
+		log.Errorf(ctx, "Failed to serialize speaker: %v", err)
+		// TODO: http code
+		fmt.Fprintf(w, "Failed to serialize speaker: %v", err)
+		return
+	}
+	io.Copy(w, bytes.NewBuffer(data))
 }
