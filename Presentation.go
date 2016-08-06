@@ -14,8 +14,8 @@ type Presentation struct {
 
 func GetPresentationHandler() http.Handler {
 	m := mux.NewRouter()
-	m.Methods("GET").HandleFunc("/presentation/")
-	m.Methods("POST").HandlerFunc("/presentation/")
+	//m.Methods("GET").HandleFunc("/presentation/")
+	//m.Methods("POST").HandlerFunc("/presentation/")
 
 	return m
 }

@@ -2,15 +2,18 @@ package MeetupRest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type Speaker struct {
@@ -23,8 +26,8 @@ type Speaker struct {
 
 func GetSpeakerHandler() http.Handler {
 	m := mux.NewRouter()
-	m.Methods("GET").HandlerFunc("/speaker/", getSpeaker)
-	m.Methods("POST").HandlerFunc("/speaker/", addSpeaker)
+	m.HandleFunc("/speaker", getSpeaker).Methods("GET")
+	m.HandleFunc("/speaker", addSpeaker).Methods("POST")
 
 	return m
 }
@@ -40,18 +43,18 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery("Speaker").Limit(1)
+	q := datastore.NewQuery("Speaker") //.Limit(1)
 
-	if name, ok := params["Name"]; ok == true {
-		q = q.Filter("Name =", name)
+	if name, ok := params["name"]; ok == true {
+		q = q.Filter("Name=", name)
 	}
 
-	if surname, ok := params["Surname"]; ok == true {
-		q = q.Filter("Surname =", surname)
+	if surname, ok := params["surname"]; ok == true {
+		q = q.Filter("Surname=", surname)
 	}
 
-	if email, ok := params["Email"]; ok == true {
-		q = q.Filter("Email =", email)
+	if email, ok := params["email"]; ok == true {
+		q = q.Filter("Email=", email)
 	}
 
 	t := q.Run(ctx)
@@ -81,36 +84,24 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
+	err := r.ParseForm()
 	if err != nil {
-		log.Errorf(ctx, "Can't parse query: %v", err)
-		// TODO: http code
-		fmt.Fprintf(w, "Can't parse query: %v", err)
+		log.Errorf(ctx, "Couldn't parse form: Name")
+		// TODO: Status Code
+		fmt.Fprint(w, "Couldn't parse form: Name")
 		return
 	}
 
 	s := &Speaker{}
 
-	if s.Name, ok = params.Get("Name"); ok == false {
-		log.Error(ctx, "Missing parametr: Name")
-		fmt.Fprint(w, "Missing parametr: Name")
+	decoder := schema.NewDecoder()
+	decoder.Decode(s, r.PostForm)
+
+	if s.Name == "" || s.Surname == "" || s.Email == "" {
+		// TODO: Status Code
+		fmt.Fprint(w, "Name, surname and email are mandatory.")
 		return
 	}
-
-	if s.Surname, ok = params.Get("Surname"); ok == false {
-		log.Error(ctx, "Missing parametr: Surname")
-		fmt.Fprint(w, "Missing parametr: Surname")
-		return
-	}
-
-	if s.Email, ok = params.Get("Email"); ok == false {
-		log.Error(ctx, "Missing parametr: Email")
-		fmt.Fprint(w, "Missing parametr: Email")
-		return
-	}
-
-	s.Company = params.Get("Company")
-	s.About = params.Get("About")
 
 	key := datastore.NewKey(ctx, "Speaker", "", 0, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
@@ -121,4 +112,5 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, "%v", id.IntID())
 }

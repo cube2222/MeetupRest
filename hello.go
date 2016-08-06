@@ -20,12 +20,11 @@ type Human struct {
 func init() {
 
 	m := mux.NewRouter()
-	m.Handle("/secure/{name}/{age}", dsHandler{})
 	m.HandleFunc("/secure/test", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "I'm secure.")
+
 	})
+	m.Handle("/speaker", GetSpeakerHandler())
 	http.Handle("/", m)
-	http.Handle("/author", GetAuthorHandler())
 }
 
 type dsHandler struct {
