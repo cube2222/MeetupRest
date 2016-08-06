@@ -23,7 +23,6 @@ func init() {
 	dsClient, err := datastore.NewClient(ctx, "meetuprest")
 	if err != nil {
 		log.Errorf(ctx, "Could not create Datastore Client:", err)
-		m.ha
 	}
 
 	m := mux.NewRouter()
