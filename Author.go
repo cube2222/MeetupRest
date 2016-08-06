@@ -21,3 +21,8 @@ func GetAuthorHandler() http.Handler {
 
 	return m
 }
+
+func getAuthorHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+}
