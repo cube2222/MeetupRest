@@ -90,11 +90,35 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := &Speaker{}
-	s.Name, ok = params.Get("Name")
-	if ok == false {
+
+	if s.Name, ok = params.Get("Name"); ok == false {
 		log.Error(ctx, "Missing parametr: Name")
-		// TODO: http code
 		fmt.Fprint(w, "Missing parametr: Name")
+		return
 	}
 
+	if s.Surname, ok = params.Get("Surname"); ok == false {
+		log.Error(ctx, "Missing parametr: Surname")
+		fmt.Fprint(w, "Missing parametr: Surname")
+		return
+	}
+
+	if s.Email, ok = params.Get("Email"); ok == false {
+		log.Error(ctx, "Missing parametr: Email")
+		fmt.Fprint(w, "Missing parametr: Email")
+		return
+	}
+
+	s.Company = params.Get("Company")
+	s.About = params.Get("About")
+
+	key := datastore.NewKey(ctx, "Speaker", "", 0, nil)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	id, err := datastore.Put(newCtx, key, s)
+	if err != nil {
+		log.Errorf(ctx, "Can't create datastore object: %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
