@@ -1,16 +1,16 @@
 package MeetupRest
 
 import (
-	"net/http"
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine"
-	"net/url"
-	"google.golang.org/appengine/log"
-	"fmt"
 	"google.golang.org/appengine/datastore"
-	"encoding/json"
+	"google.golang.org/appengine/log"
 	"io"
-	"bytes"
+	"net/http"
+	"net/url"
 )
 
 type Speaker struct {
@@ -24,8 +24,7 @@ type Speaker struct {
 
 func GetSpeakerHandler() http.Handler {
 	m := mux.NewRouter()
-	m.HandleFunc(/...)
-	m.Methods("GET").HandleFunc("/author/")
+	m.Methods("GET").HandlerFunc("/speaker/", getSpeaker)
 
 	return m
 }
@@ -46,7 +45,7 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	if name, ok := params["Name"]; ok == true {
 		q = q.Filter("Name =", name)
 	}
-	
+
 	if surname, ok := params["Surname"]; ok == true {
 		q = q.Filter("Surname =", surname)
 	}
