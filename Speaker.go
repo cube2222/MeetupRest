@@ -14,17 +14,17 @@ import (
 )
 
 type Speaker struct {
-	Name          string
-	Surname       string
-	About         string
-	Email         string
-	Company       string
-	Presentations []string
+	Name    string
+	Surname string
+	About   string
+	Email   string
+	Company string
 }
 
 func GetSpeakerHandler() http.Handler {
 	m := mux.NewRouter()
 	m.Methods("GET").HandlerFunc("/speaker/", getSpeaker)
+	m.Methods("POST").HandlerFunc("/speaker/", addSpeaker)
 
 	return m
 }
@@ -76,4 +76,25 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.Copy(w, bytes.NewBuffer(data))
+}
+
+func addSpeaker(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		log.Errorf(ctx, "Can't parse query: %v", err)
+		// TODO: http code
+		fmt.Fprintf(w, "Can't parse query: %v", err)
+		return
+	}
+
+	s := &Speaker{}
+	s.Name, ok = params.Get("Name")
+	if ok == false {
+		log.Error(ctx, "Missing parametr: Name")
+		// TODO: http code
+		fmt.Fprint(w, "Missing parametr: Name")
+	}
+
 }
