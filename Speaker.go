@@ -43,18 +43,18 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery("Speaker") //.Limit(1)
+	q := datastore.NewQuery("Speaker").Limit(1)
 
 	if name, ok := params["name"]; ok == true {
-		q = q.Filter("Name=", name)
+		q = q.Filter("Name=", name[0])
 	}
 
 	if surname, ok := params["surname"]; ok == true {
-		q = q.Filter("Surname=", surname)
+		q = q.Filter("Surname=", surname[0])
 	}
 
 	if email, ok := params["email"]; ok == true {
-		q = q.Filter("Email=", email)
+		q = q.Filter("Email=", email[0])
 	}
 
 	t := q.Run(ctx)
