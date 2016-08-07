@@ -24,6 +24,7 @@ func init() {
 
 	})
 	m.Handle("/speaker", GetSpeakerHandler())
+	m.Handle("/presentation", GetPresentationHandler())
 	http.Handle("/", m)
 }
 

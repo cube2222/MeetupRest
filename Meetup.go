@@ -9,3 +9,11 @@ type Meetup struct {
 	Date          time.Time
 	VoteTimeEnd   time.Time
 }
+
+func GetMeetupHandler() http.Handler {
+	m := mux.NewRouter()
+	m.HandleFunc("/meetup", getMeetup).Methods("GET")
+	m.HandleFunc("/meetup", addMeetup).Methods("POST")
+
+	return m
+}

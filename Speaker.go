@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+const kindName = "Speakers"
+
 type Speaker struct {
 	Name    string
 	Surname string
@@ -43,7 +45,7 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery("Speaker").Limit(1)
+	q := datastore.NewQuery(kindName).Limit(1)
 
 	if name, ok := params["name"]; ok == true {
 		q = q.Filter("Name=", name[0])
@@ -103,7 +105,7 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, "Speaker", "", 0, nil)
+	key := datastore.NewKey(ctx, kindName, "", 0, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, s)
 	if err != nil {
