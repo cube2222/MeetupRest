@@ -1,6 +1,7 @@
 package MeetupRest
 
 import (
+	"context"
 	"fmt"
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine"
@@ -8,6 +9,7 @@ import (
 	"google.golang.org/appengine/log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Human struct {
@@ -39,8 +41,8 @@ func (h dsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	e.Age = age
 
 	k := datastore.NewKey(ctx, "People", "", 0, nil)
-	//newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	id, err := datastore.Put(ctx, k, e)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	id, err := datastore.Put(newCtx, k, e)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		return

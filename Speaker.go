@@ -2,6 +2,7 @@ package MeetupRest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const kindSpeakers = "Speakers"
@@ -38,7 +40,7 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		log.Errorf(ctx, "Can't parse query: %v", err)
-		// TODO: http code
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
@@ -57,24 +59,27 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("Email=", email[0])
 	}
 
-	t := q.Run(ctx)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	t := q.Run(newCtx)
 
 	mySpeaker := Speaker{}
 	_, err = t.Next(&mySpeaker)
+	// No speaker retrieved
 	if err == datastore.Done {
 		fmt.Fprint(w, "No speaker found.")
 		return
 	}
+	// Some other error.
 	if err != nil {
 		log.Errorf(ctx, "Can't get speaker: %v", err)
-		// TODO: http code
+		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Can't get speaker: %v", err)
 		return
 	}
 	data, err := json.Marshal(&mySpeaker)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize speaker: %v", err)
-		// TODO: http code
+		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Failed to serialize speaker: %v", err)
 		return
 	}
@@ -87,7 +92,7 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: Name")
-		// TODO: Status Code
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Couldn't parse form: Name")
 		return
 	}
@@ -98,16 +103,18 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	decoder.Decode(s, r.PostForm)
 
 	if s.Name == "" || s.Surname == "" || s.Email == "" {
-		// TODO: Status Code
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Name, surname and email are mandatory.")
 		return
 	}
 
 	key := datastore.NewKey(ctx, kindSpeakers, "", 0, nil)
-	//newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	id, err := datastore.Put(ctx, key, s)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	id, err := datastore.Put(newCtx, key, s)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "Can't create datastore object: %v", err)
 		return
 	}
 
