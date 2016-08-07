@@ -1,11 +1,20 @@
 package MeetupRest
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/log"
+	"io"
 	"net/http"
+	"net/url"
 )
 
-const kindName = "Presentations"
+const kindPresentations = "Presentations"
 
 type Presentation struct {
 	Title       string
@@ -16,8 +25,8 @@ type Presentation struct {
 
 func GetPresentationHandler() http.Handler {
 	m := mux.NewRouter()
-	m.Methods("GET").HandleFunc("/presentation/")
-	m.Methods("POST").HandlerFunc("/presentation/")
+	m.HandleFunc("/presentation", getSpeaker).Methods("GET")
+	m.HandleFunc("/presentation", addSpeaker).Methods("POST")
 
 	return m
 }
@@ -33,13 +42,17 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery(kindName).Limit(1)
+	q := datastore.NewQuery(kindPresentations).Limit(1)
 
 	if title, ok := params["title"]; ok == true {
 		q = q.Filter("Title=", title[0])
 	}
 
-	if speaker, ok := params["description"]; ok == true {
+	if speaker, ok := params["speaker"]; ok == true {
+		q = q.Filter("Speaker=", speaker[0])
+	}
+
+	if description, ok := params["description"]; ok == true {
 		q = q.Filter("Description=", description[0])
 	}
 
@@ -81,9 +94,9 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Fields Title, Speaker and Description are mandatory!")
 	}
 
-	key := datastore.NewKey(ctx, kindName, "", 0, nil)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	id, err := datastore.Put(newCtx, key, s)
+	key := datastore.NewKey(ctx, kindPresentations, "", 0, nil)
+	//newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	id, err := datastore.Put(ctx, key, p)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		return

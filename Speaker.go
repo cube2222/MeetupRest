@@ -2,7 +2,6 @@ package MeetupRest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -13,10 +12,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 )
 
-const kindName = "Speakers"
+const kindSpeakers = "Speakers"
 
 type Speaker struct {
 	Name    string
@@ -45,7 +43,7 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery(kindName).Limit(1)
+	q := datastore.NewQuery(kindSpeakers).Limit(1)
 
 	if name, ok := params["name"]; ok == true {
 		q = q.Filter("Name=", name[0])
@@ -105,9 +103,9 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, kindName, "", 0, nil)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	id, err := datastore.Put(newCtx, key, s)
+	key := datastore.NewKey(ctx, kindSpeakers, "", 0, nil)
+	//newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	id, err := datastore.Put(ctx, key, s)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		return
