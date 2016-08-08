@@ -5,15 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 const datastoreSpeakersKind = "Speakers"
