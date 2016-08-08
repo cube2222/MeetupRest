@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const kindMeetups = "Meetup"
+const datastoreMeetupsKind = "Meetups"
 
 type Meetup struct {
 	Title         string
@@ -45,7 +45,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery(kindMeetups).Limit(1)
+	q := datastore.NewQuery(datastoreMeetupsKind).Limit(1)
 
 	if title, ok := params["title"]; ok == true {
 		q = q.Filter("Title=", title[0])
@@ -56,7 +56,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if presentation, ok := params["presentation"]; ok == true {
-		//TODO: Add the ability o add tables
+		//TODO: Add the ability to add tables
 		q = q.Filter("Presentations=", presentation[0])
 	}
 
@@ -93,9 +93,9 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseForm()
 	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: Meetup")
+		log.Errorf(ctx, "Couldn't parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Couldn't parse form: Meetup")
+		fmt.Fprint(w, "Couldn't parse form: %v", err)
 		return
 	}
 
@@ -103,14 +103,13 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	decoder := schema.NewDecoder()
 	decoder.Decode(m, r.PostForm)
-
 	if /*m.Date == nil ||*/ m.Title == "" || /*m.VoteTimeEnd == nil ||*/ m.Description == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Date, tile vote time end and description are mandatory.")
 		return
 	}
 
-	key := datastore.NewKey(ctx, kindMeetups, "", 0, nil)
+	key := datastore.NewKey(ctx, datastoreMeetupsKind, "", 0, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, m)
 	if err != nil {

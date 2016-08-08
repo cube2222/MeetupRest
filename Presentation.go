@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const kindPresentations = "Presentations"
+const datastorePresentationskind = "Presentations"
 
 type Presentation struct {
 	Title       string
@@ -44,7 +44,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery(kindPresentations).Limit(1)
+	q := datastore.NewQuery(datastorePresentationskind).Limit(1)
 
 	if title, ok := params["title"]; ok == true {
 		q = q.Filter("Title=", title[0])
@@ -106,7 +106,7 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, kindPresentations, "", 0, nil)
+	key := datastore.NewKey(ctx, datastorePresentationskind, "", 0, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, p)
 	if err != nil {
