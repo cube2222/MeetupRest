@@ -25,6 +25,7 @@ type Presentation struct {
 	VoteCount   int
 }
 
+// Get the handler which contains all the presentation handling routes and the corresponding handlers.
 func GetPresentationHandler() http.Handler {
 	m := mux.NewRouter()
 	m.HandleFunc("/presentation", getSpeaker).Methods("GET")

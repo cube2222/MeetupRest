@@ -26,6 +26,7 @@ type Speaker struct {
 	Company string
 }
 
+// Get the handler which contains all the speaker handling routes and the corresponding handlers.
 func GetSpeakerHandler() http.Handler {
 	m := mux.NewRouter()
 	m.HandleFunc("/speaker", getSpeaker).Methods("GET")

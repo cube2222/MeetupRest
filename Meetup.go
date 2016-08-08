@@ -26,6 +26,7 @@ type Meetup struct {
 	VoteTimeEnd   time.Time
 }
 
+// Get the handler which contains all the meetup handling routes and the corresponding handlers.
 func GetMeetupHandler() http.Handler {
 	m := mux.NewRouter()
 	m.HandleFunc("/meetup", getMeetup).Methods("GET")
