@@ -26,6 +26,9 @@ func init() {
 	m.Handle("/speaker", GetSpeakerHandler())
 	m.Handle("/presentation", GetPresentationHandler())
 	m.Handle("/addSpeaker", GetFormsHandler())
+	m.Handle("/meetup", GetMeetupHandler())
+	m.Handle("/meetupsList", GetMeetupListHandler())
+
 	http.Handle("/", m)
 }
 

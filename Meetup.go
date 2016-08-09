@@ -31,8 +31,13 @@ func GetMeetupHandler() http.Handler {
 	m := mux.NewRouter()
 	m.HandleFunc("/meetup", getMeetup).Methods("GET")
 	m.HandleFunc("/meetup", addMeetup).Methods("POST")
-	m.HandleFunc("/meetup/list", getAllMeetups).Methods("GET")
 	return m
+}
+
+func GetMeetupListHandler() http.Handler {
+	ml := mux.NewRouter()
+	ml.HandleFunc("/meetupsList", getAllMeetups).Methods("GET")
+	return ml
 }
 
 func getMeetup(w http.ResponseWriter, r *http.Request) {
@@ -92,8 +97,8 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	meetups := []Meetup{}
-	keys, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(ctx, &meetups)
+	meetups := make([]Meetup, 0, 10)
+	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(ctx, &meetups)
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetups: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -101,15 +106,14 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for idx, item := range meetups {
-		data, err := json.Marshal(&meetups[idx])
-		if err != nil {
-			log.Errorf(ctx, "Failed to serialize meetup: %v", err)
-			fmt.Fprintf(w, "Failed to serialize meetup: %v", err)
-			break
-		}
-		io.Copy(w, bytes.NewBuffer(data))
+	data, err := json.Marshal(&meetups)
+	if err != nil {
+		log.Errorf(ctx, "Failed to serialize meetups array(slice): %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to serialize meetups array(slice) : %v", err)
+		return
 	}
+	io.Copy(w, bytes.NewBuffer(data))
 }
 
 func addMeetup(w http.ResponseWriter, r *http.Request) {
