@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 const datastorePresentationskind = "Presentations"
@@ -26,12 +28,14 @@ type Presentation struct {
 }
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
-func GetPresentationHandler() http.Handler {
-	m := mux.NewRouter()
-	m.HandleFunc("/presentation", getSpeaker).Methods("GET")
-	m.HandleFunc("/presentation", addSpeaker).Methods("POST")
+func RegisterPresentationRoutes(m *mux.Router) error {
+	if m == nil {
+		errors.New("m may not be nil when registering presentation routes")
+	}
+	m.HandleFunc("/", getSpeaker).Methods("GET")
+	m.HandleFunc("/", addSpeaker).Methods("POST")
 
-	return m
+	return nil
 }
 
 func getPresentation(w http.ResponseWriter, r *http.Request) {

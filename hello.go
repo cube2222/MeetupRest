@@ -21,14 +21,18 @@ type Human struct {
 func init() {
 
 	m := mux.NewRouter()
-	m.HandleFunc("/secure/test", func(w http.ResponseWriter, r *http.Request) {
 
-	})
-	m.Handle("/speaker", GetSpeakerHandler())
-	m.Handle("/presentation", GetPresentationHandler())
+	s := m.PathPrefix("/speaker").Subrouter()
+	err := RegisterSpeakerRoutes(s)
+
+	s = m.PathPrefix("/presentation").Subrouter()
+	err = RegisterPresentationRoutes(s)
+
 	m.Handle("/addSpeaker", GetFormsHandler())
-	s := m.PathPrefix("/meetup").Subrouter()
-	err := RegisterMeetupRoutes(s)
+
+	s = m.PathPrefix("/meetup").Subrouter()
+	err = RegisterMeetupRoutes(s)
+
 	if err != nil {
 		panic(err)
 	}

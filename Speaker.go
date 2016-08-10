@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,12 +29,14 @@ type Speaker struct {
 }
 
 // Get the handler which contains all the speaker handling routes and the corresponding handlers.
-func GetSpeakerHandler() http.Handler {
-	m := mux.NewRouter()
-	m.HandleFunc("/speaker", getSpeaker).Methods("GET")
-	m.HandleFunc("/speaker", addSpeaker).Methods("POST")
+func RegisterSpeakerRoutes(m *mux.Router) error {
+	if m == nil {
+		return errors.New("m may not be nil when registering speaker routes")
+	}
+	m.HandleFunc("/", getSpeaker).Methods("GET")
+	m.HandleFunc("/", addSpeaker).Methods("POST")
 
-	return m
+	return nil
 }
 
 func getSpeaker(w http.ResponseWriter, r *http.Request) {

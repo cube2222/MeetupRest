@@ -31,11 +31,12 @@ type Meetup struct {
 // Register meetup routes to the router
 func RegisterMeetupRoutes(m *mux.Router) error {
 	if m == nil {
-		return errors.New("m may not be nil")
+		return errors.New("m may not be nil when regitering meetup routes")
 	}
 	m.HandleFunc("/", getMeetup).Methods("GET")
 	m.HandleFunc("/", addMeetup).Methods("POST")
 	m.HandleFunc("/list", getAllMeetups).Methods("GET")
+
 	return nil
 }
 
