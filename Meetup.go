@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 const datastoreMeetupsKind = "Meetups"
@@ -26,22 +28,21 @@ type Meetup struct {
 	VoteTimeEnd   time.Time
 }
 
-// Get the handler which contains all the meetup handling routes and the corresponding handlers.
-func GetMeetupHandler() http.Handler {
-	m := mux.NewRouter()
-	m.HandleFunc("/meetup", getMeetup).Methods("GET")
-	m.HandleFunc("/meetup", addMeetup).Methods("POST")
-	return m
-}
-
-func GetMeetupListHandler() http.Handler {
-	ml := mux.NewRouter()
-	ml.HandleFunc("/meetupsList", getAllMeetups).Methods("GET")
-	return ml
+// Register meetup routes to the router
+func RegisterMeetupRoutes(m *mux.Router) error {
+	if m == nil {
+		return errors.New("m may not be nil")
+	}
+	m.HandleFunc("/", getMeetup).Methods("GET")
+	m.HandleFunc("/", addMeetup).Methods("POST")
+	m.HandleFunc("/list", getAllMeetups).Methods("GET")
+	return nil
 }
 
 func getMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+
+	log.Infof(ctx, "Received meetup get.")
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -96,6 +97,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 
 func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	log.Infof(ctx, "Received meetup list.")
 
 	meetups := make([]Meetup, 0, 10)
 	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(ctx, &meetups)
@@ -118,6 +120,7 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 
 func addMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	log.Infof(ctx, "Received meetup post.")
 
 	err := r.ParseForm()
 	if err != nil {

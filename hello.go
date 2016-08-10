@@ -3,13 +3,14 @@ package MeetupRest
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type Human struct {
@@ -26,8 +27,11 @@ func init() {
 	m.Handle("/speaker", GetSpeakerHandler())
 	m.Handle("/presentation", GetPresentationHandler())
 	m.Handle("/addSpeaker", GetFormsHandler())
-	m.Handle("/meetup", GetMeetupHandler())
-	m.Handle("/meetupsList", GetMeetupListHandler())
+	s := m.PathPrefix("/meetup").Subrouter()
+	err := RegisterMeetupRoutes(s)
+	if err != nil {
+		panic(err)
+	}
 
 	http.Handle("/", m)
 }
