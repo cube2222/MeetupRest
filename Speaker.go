@@ -35,6 +35,7 @@ func RegisterSpeakerRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getSpeaker).Methods("GET")
 	m.HandleFunc("/", addSpeaker).Methods("POST")
+	m.HandleFunc("/form/", addSpeakerForm).Methods("GET")
 
 	return nil
 }
@@ -125,4 +126,16 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", id.IntID())
+}
+
+func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "<h1>Adding Speaker Form</h1>"+
+		"<form action=\"/speaker/\" method=\"POST\">"+
+		"First name: <input type=\"text\" name=\"Name\"><br>"+
+		"Last name: <input type=\"text\" name=\"Surname\"><br>"+
+		"Company: <input type=\"text\" name=\"Company\"><br>"+
+		"email: <input type=\"email\" name=\"Email\"><br>"+
+		"About: <textarea name=\"About\"></textarea><br>"+
+		"<input type=\"submit\" value=\"Save\">"+
+		"</form>")
 }
