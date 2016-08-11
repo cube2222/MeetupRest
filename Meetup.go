@@ -35,6 +35,7 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getMeetup).Methods("GET")
 	m.HandleFunc("/", addMeetup).Methods("POST")
+	m.HandleFunc("/", deleteMeetup).Methods("DELETE")
 	m.HandleFunc("/list", getAllMeetups).Methods("GET")
 
 	return nil
@@ -153,4 +154,40 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", id.IntID())
+}
+
+func deleteMeetup(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		log.Errorf(ctx, "Can't parse query: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Can't parse query: %v", err)
+		return
+	}
+
+	q := datastore.NewQuery(datastoreMeetupsKind).Limit(1)
+
+	if title, ok := params["title"]; ok == true {
+		q = q.Filter("Title=", title[0])
+	}
+
+	if key, ok := params["key"]; ok == true {
+		q = q.Filter("ID=", key[0])
+	}
+
+	t := q.Run(ctx)
+	myMeetup := Meetup{}
+	key, err := t.Next(&myMeetup)
+	if err == datastore.Done {
+		fmt.Fprint(w, "No meetup found.")
+		return
+	}
+
+	if err = datastore.Delete(ctx, key); err != nil {
+		log.Errorf(ctx, "session-appengine: error deleting session data from datastore: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusTeapot)
 }
