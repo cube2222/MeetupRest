@@ -28,8 +28,6 @@ func init() {
 	s = m.PathPrefix("/presentation").Subrouter()
 	err = RegisterPresentationRoutes(s)
 
-	m.Handle("/addSpeaker", GetFormsHandler())
-
 	s = m.PathPrefix("/meetup").Subrouter()
 	err = RegisterMeetupRoutes(s)
 
