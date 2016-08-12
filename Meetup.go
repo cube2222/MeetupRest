@@ -28,6 +28,14 @@ type Meetup struct {
 	VoteTimeEnd   time.Time
 }
 
+type MeetupUpdateForm struct {
+	CurrentTitle   string
+	NewTitle       string
+	NewDescription string
+	NewDate        time.Time
+	NewVoteTimeEnd time.Time
+}
+
 // Register meetup routes to the router
 func RegisterMeetupRoutes(m *mux.Router) error {
 	if m == nil {
@@ -36,6 +44,7 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 	m.HandleFunc("/", getMeetup).Methods("GET")
 	m.HandleFunc("/", addMeetup).Methods("POST")
 	m.HandleFunc("/", deleteMeetup).Methods("DELETE")
+	m.HandleFunc("/", updateMeetup).Methods("PUT")
 	m.HandleFunc("/list", getAllMeetups).Methods("GET")
 
 	return nil
@@ -43,8 +52,6 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 
 func getMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-
-	log.Infof(ctx, "Received meetup get.")
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -76,6 +83,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	t := q.Run(ctx)
 	myMeetup := Meetup{}
 	_, err = t.Next(&myMeetup)
+
 	if err == datastore.Done {
 		fmt.Fprint(w, "No meetup found.")
 		return
@@ -99,7 +107,6 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 
 func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-	log.Infof(ctx, "Received meetup list.")
 
 	meetups := make([]Meetup, 0, 10)
 	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(ctx, &meetups)
@@ -122,7 +129,6 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 
 func addMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-	log.Infof(ctx, "Received meetup post.")
 
 	err := r.ParseForm()
 	if err != nil {
@@ -190,4 +196,69 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusTeapot)
+}
+
+func updateMeetup(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	err := r.ParseForm()
+	if err != nil {
+		log.Errorf(ctx, "Couldn't parse form: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Couldn't parse form: %v", err)
+		return
+	}
+
+	muf := &MeetupUpdateForm{}
+	decoder := schema.NewDecoder()
+	decoder.Decode(muf, r.PostForm)
+
+	if muf.CurrentTitle == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Current meetup title is mandatory.")
+		return
+	}
+
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	t := datastore.NewQuery(datastoreMeetupsKind).Filter("Title=", muf.CurrentTitle).Limit(1).Run(newCtx)
+	myMeetup := Meetup{}
+	key, err := t.Next(&myMeetup)
+
+	if err == datastore.Done {
+		fmt.Fprint(w, "No such meetup found.")
+		return
+	}
+	// Some other error
+	if err != nil {
+		log.Errorf(ctx, "Can't get meetup: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if muf.NewTitle != "" {
+		myMeetup.Title = muf.NewTitle
+	}
+
+	if muf.NewDescription != "" {
+		myMeetup.Description = muf.NewDescription
+	}
+
+	/*if muf.NewDate != nil {
+
+	}
+
+	if muf.NewVoteTimeEnd != nil {
+
+	}*/
+
+	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	_, err = datastore.Put(newCtx, key, myMeetup)
+	if err != nil {
+		log.Errorf(ctx, "Can't create datastore object: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprint(w, "Meetup updated.")
 }
