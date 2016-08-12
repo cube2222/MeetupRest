@@ -24,7 +24,7 @@ type Presentation struct {
 	Title       string
 	Description string
 	Speaker     string
-	VoteCount   int
+	Voters      []string
 }
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
