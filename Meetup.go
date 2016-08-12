@@ -43,8 +43,8 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getMeetup).Methods("GET")
 	m.HandleFunc("/", addMeetup).Methods("POST")
-	m.HandleFunc("/", deleteMeetup).Methods("DELETE")
-	m.HandleFunc("/", updateMeetup).Methods("PUT")
+	m.HandleFunc("/delete", deleteMeetup).Methods("DELETE")
+	m.HandleFunc("/update", updateMeetup).Methods("POST")
 	m.HandleFunc("/list", getAllMeetups).Methods("GET")
 
 	return nil
@@ -129,7 +129,6 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Couldn't parse form: %v", err)
 		return
 	}
 
@@ -149,7 +148,6 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Can't create datastore object: %v", err)
 		return
 	}
 
@@ -199,7 +197,6 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Couldn't parse form: %v", err)
 		return
 	}
 
@@ -215,7 +212,7 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	t := datastore.NewQuery(datastoreMeetupsKind).Filter("Title=", muf.CurrentTitle).Limit(1).Run(newCtx)
-	myMeetup := Meetup{}
+	myMeetup := &Meetup{}
 	key, err := t.Next(&myMeetup)
 
 	if err == datastore.Done {
@@ -244,6 +241,13 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 	if muf.NewVoteTimeEnd != nil {
 
 	}*/
+	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Delete(newCtx, key)
+	if err != nil {
+		log.Errorf(ctx, "Can't delete datastore object: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, myMeetup)

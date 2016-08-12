@@ -2,6 +2,7 @@ package MeetupRest
 
 import (
 	"context"
+
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 )
@@ -20,8 +21,8 @@ func setData(key, content string) {
 		Key:     key,
 		Content: content,
 	}
-	keyId := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
-	if _, err := datastore.Put(ctx, keyId, myMetadata); err != nil {
+	keyID := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
+	if _, err := datastore.Put(ctx, keyID, myMetadata); err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 	}
 }
@@ -29,9 +30,9 @@ func setData(key, content string) {
 func getData(key string) string {
 	ctx := context.Background()
 	var data Metadata
-	keyId := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
-	if err := datastore.Get(ctx, keyId, &data); err != nil {
-		log.Errorf(ctx, "Can't retrive datastore object", err)
+	keyID := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
+	if err := datastore.Get(ctx, keyID, &data); err != nil {
+		log.Errorf(ctx, "Can't retrive datastore object: %v", err)
 		return ""
 	}
 	return data.Content

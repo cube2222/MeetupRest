@@ -32,8 +32,8 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	if m == nil {
 		errors.New("m may not be nil when registering presentation routes")
 	}
-	m.HandleFunc("/", getSpeaker).Methods("GET")
-	m.HandleFunc("/", addSpeaker).Methods("POST")
+	m.HandleFunc("/", getPresentation).Methods("GET")
+	m.HandleFunc("/", addPresentation).Methods("POST")
 
 	return nil
 }
@@ -91,9 +91,8 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseForm()
 	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: Presentation")
+		log.Errorf(ctx, "Couldn't parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Couldn't parse form: Presentation")
 		return
 	}
 
