@@ -185,7 +185,7 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	t := q.Run(newCtx)
 
 	mySpeaker := &Speaker{}
-	key, err := t.Next(&mySpeaker)
+	key, err := t.Next(mySpeaker)
 
 	if err == datastore.Done {
 		fmt.Fprint(w, "No such speaker found.")
@@ -219,17 +219,8 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Delete(newCtx, key)
-	if err != nil {
-		log.Errorf(ctx, "Can't delete datastore object: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	key = datastore.NewKey(ctx, datastoreSpeakersKind, "", 0, nil)
-
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, mySpeaker)
+	log.Infof(ctx, key.String())
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

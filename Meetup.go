@@ -213,7 +213,7 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	t := datastore.NewQuery(datastoreMeetupsKind).Filter("Title=", muf.CurrentTitle).Limit(1).Run(newCtx)
 	myMeetup := &Meetup{}
-	key, err := t.Next(&myMeetup)
+	key, err := t.Next(myMeetup)
 
 	if err == datastore.Done {
 		fmt.Fprint(w, "No such meetup found.")
@@ -241,13 +241,6 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 	if muf.NewVoteTimeEnd != nil {
 
 	}*/
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Delete(newCtx, key)
-	if err != nil {
-		log.Errorf(ctx, "Can't delete datastore object: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 
 	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, myMeetup)
