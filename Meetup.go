@@ -57,7 +57,6 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
 
@@ -92,14 +91,12 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Can't get meetup: %v", err)
 		return
 	}
 	data, err := json.Marshal(&myMeetup)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to serialize meetup: %v", err)
 		return
 	}
 	io.Copy(w, bytes.NewReader(data))
@@ -113,7 +110,6 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetups: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Can't get meetups: %v", err)
 		return
 	}
 
@@ -121,7 +117,6 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize meetups array(slice): %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to serialize meetups array(slice) : %v", err)
 		return
 	}
 	io.Copy(w, bytes.NewReader(data))
@@ -169,7 +164,6 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
 

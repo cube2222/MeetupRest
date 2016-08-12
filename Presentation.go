@@ -45,7 +45,6 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
 
@@ -76,14 +75,12 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't get presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Can't get presentation: %v", err)
 		return
 	}
 	data, err := json.Marshal(&myPresentation)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to serialize presentation: %v", err)
 		return
 	}
 	io.Copy(w, bytes.NewReader(data))
@@ -117,7 +114,6 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Can't create datastore object: %v", err)
 		return
 	}
 

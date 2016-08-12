@@ -47,7 +47,6 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Can't parse query: %v", err)
 		return
 	}
 
@@ -79,14 +78,12 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't get speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Can't get speaker: %v", err)
 		return
 	}
 	data, err := json.Marshal(&mySpeaker)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to serialize speaker: %v", err)
 		return
 	}
 	io.Copy(w, bytes.NewReader(data))
