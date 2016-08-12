@@ -94,7 +94,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Failed to serialize meetup: %v", err)
 		return
 	}
-	io.Copy(w, bytes.NewBuffer(data))
+	io.Copy(w, bytes.NewReader(data))
 }
 
 func getAllMeetups(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Failed to serialize meetups array(slice) : %v", err)
 		return
 	}
-	io.Copy(w, bytes.NewBuffer(data))
+	io.Copy(w, bytes.NewReader(data))
 }
 
 func addMeetup(w http.ResponseWriter, r *http.Request) {

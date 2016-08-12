@@ -86,7 +86,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Failed to serialize presentation: %v", err)
 		return
 	}
-	io.Copy(w, bytes.NewBuffer(data))
+	io.Copy(w, bytes.NewReader(data))
 }
 
 func addPresentation(w http.ResponseWriter, r *http.Request) {
