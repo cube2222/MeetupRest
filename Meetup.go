@@ -79,7 +79,8 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("Date=", date[0])
 	}
 
-	t := q.Run(ctx)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	t := q.Run(newCtx)
 	myMeetup := Meetup{}
 	_, err = t.Next(&myMeetup)
 
@@ -105,8 +106,9 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	meetups := make([]Meetup, 0, 10)
-	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(ctx, &meetups)
+	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(newCtx, &meetups)
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetups: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -175,7 +177,8 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("ID=", key[0])
 	}
 
-	t := q.Run(ctx)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	t := q.Run(newCtx)
 	myMeetup := Meetup{}
 	key, err := t.Next(&myMeetup)
 	if err == datastore.Done {
@@ -183,7 +186,8 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = datastore.Delete(ctx, key); err != nil {
+	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	if err = datastore.Delete(newCtx, key); err != nil {
 		log.Errorf(ctx, "session-appengine: error deleting session data from datastore: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
