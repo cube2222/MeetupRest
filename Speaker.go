@@ -47,6 +47,7 @@ func RegisterSpeakerRoutes(m *mux.Router) error {
 	m.HandleFunc("/", getSpeaker).Methods("GET")
 	m.HandleFunc("/", addSpeaker).Methods("POST")
 	m.HandleFunc("/update", updateSpeaker).Methods("POST")
+	m.HandleFunc("/delete", deleteSpeaker).Methods("DELETE")
 	m.HandleFunc("/form/add", addSpeakerForm).Methods("GET")
 	m.HandleFunc("/form/update", updateSpeakerForm).Methods("GET")
 
@@ -245,4 +246,52 @@ func updateSpeakerForm(w http.ResponseWriter, r *http.Request) {
 		"New about: <textarea name=\"NewAbout\"></textarea><br>"+
 		"<input type=\"submit\" value=\"Save\">"+
 		"</form>")
+}
+
+func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		log.Errorf(ctx, "Can't parse query: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	q := datastore.NewQuery(datastoreSpeakersKind).Limit(1)
+
+	name, okName := params["name"]
+	surname, okSurname := params["surname"]
+	email, okEmail := params["email"]
+
+	// Check if email or name with surname are provided.
+	if !okEmail && (!okName || !okSurname) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Speaker email or name with surname must be provided.")
+		return
+	}
+
+	if okName {
+		q = q.Filter("Name=", name[0]).Filter("Surname=", surname[0])
+	}
+	if okEmail {
+		q = q.Filter("Email=", email[0])
+	}
+
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	t := q.Run(newCtx)
+	mySpeaker := &Speaker{}
+	key, err := t.Next(mySpeaker)
+	if err == datastore.Done {
+		fmt.Fprint(w, "No speaker found.")
+		return
+	}
+
+	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	if err = datastore.Delete(newCtx, key); err != nil {
+		log.Errorf(ctx, "Can't delete speaker: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusTeapot)
+	fmt.Fprint(w, "Speaker deleted successfully.")
 }

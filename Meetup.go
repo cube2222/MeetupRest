@@ -169,12 +169,20 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 
 	q := datastore.NewQuery(datastoreMeetupsKind).Limit(1)
 
-	if title, ok := params["title"]; ok == true {
+	title, okTitle := params["title"]
+	ID, okID := params["id"]
+	if !(okID || okTitle) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Meetup title or ID must be provided.")
+		return
+	}
+
+	if okTitle {
 		q = q.Filter("Title=", title[0])
 	}
 
-	if key, ok := params["key"]; ok == true {
-		q = q.Filter("ID=", key[0])
+	if okID {
+		q = q.Filter("ID=", ID[0])
 	}
 
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
@@ -188,10 +196,11 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 
 	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
 	if err = datastore.Delete(newCtx, key); err != nil {
-		log.Errorf(ctx, "session-appengine: error deleting session data from datastore: %v", err)
+		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusTeapot)
+	fmt.Fprint(w, "Meetup deleted successfully.")
 }
 
 func updateMeetup(w http.ResponseWriter, r *http.Request) {
