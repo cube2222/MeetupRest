@@ -215,7 +215,10 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	t := datastore.NewQuery(datastoreMeetupsKind).Filter("Title=", muf.CurrentTitle).Limit(1).Run(newCtx)
+	t := datastore.NewQuery(datastoreMeetupsKind).
+		Filter("Title=", muf.CurrentTitle).
+		Limit(1).
+		Run(newCtx)
 	myMeetup := &Meetup{}
 	key, err := t.Next(myMeetup)
 
