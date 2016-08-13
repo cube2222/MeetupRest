@@ -117,7 +117,7 @@ func getAllMeetups(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(&meetups)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize meetups array(slice): %v", err)
+		log.Errorf(ctx, "Failed to serialize meetups slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

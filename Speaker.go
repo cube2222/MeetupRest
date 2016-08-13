@@ -46,6 +46,7 @@ func RegisterSpeakerRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getSpeaker).Methods("GET")
 	m.HandleFunc("/", addSpeaker).Methods("POST")
+	m.HandleFunc("/list", listSpeakers).Methods("GET")
 	m.HandleFunc("/update", updateSpeaker).Methods("POST")
 	m.HandleFunc("/delete", deleteSpeaker).Methods("DELETE")
 	m.HandleFunc("/form/add", addSpeakerForm).Methods("GET")
@@ -294,4 +295,25 @@ func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Speaker deleted successfully.")
+}
+
+func listSpeakers(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+	speakers := make([]Speaker, 0, 10)
+
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	_, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
+	if err != nil {
+		log.Errorf(ctx, "Can't get speakers: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.Marshal(&speakers)
+	if err != nil {
+		log.Errorf(ctx, "Failed to serialize speakers slice: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	io.Copy(w, bytes.NewReader(data))
 }
