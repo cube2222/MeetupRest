@@ -86,7 +86,12 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	data, err := json.Marshal(&myPresentation)
+	data, err := json.Marshal(&PresentationPublicView{
+		Title:       myPresentation.Title,
+		Description: myPresentation.Description,
+		Speaker:     myPresentation.Speaker,
+		Votes:       len(myPresentation.Voters),
+	})
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
