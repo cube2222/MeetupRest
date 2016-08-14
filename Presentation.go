@@ -34,6 +34,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getPresentation).Methods("GET")
 	m.HandleFunc("/", addPresentation).Methods("POST")
+	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
 
 	return nil
 }
@@ -118,4 +119,14 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", id.IntID())
+}
+
+func addPresentationForm(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "<h1>Adding Presentation Form</h1>"+
+		"<form action=\"/presentation/\" method=\"POST\">"+
+		"Title: <input type=\"text\" name=\"Title\"><br>"+
+		"Description: <textarea name=\"Description\"></textarea><br>"+
+		"Speaker: <input type=\"text\" name=\"Speaker\"><br>"+
+		"<input type=\"submit\" value=\"Save\">"+
+		"</form>")
 }
