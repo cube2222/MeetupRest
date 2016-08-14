@@ -27,6 +27,13 @@ type Presentation struct {
 	Voters      []string
 }
 
+type PresentationPublicView struct {
+	Title       string
+	Description string
+	Speaker     string
+	Votes       int
+}
+
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
 func RegisterPresentationRoutes(m *mux.Router) error {
 	if m == nil {
@@ -34,6 +41,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getPresentation).Methods("GET")
 	m.HandleFunc("/", addPresentation).Methods("POST")
+	m.HandleFunc("/list", listPresentations).Methods("GET")
 	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
 
 	return nil
@@ -129,4 +137,50 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 		"Speaker: <input type=\"text\" name=\"Speaker\"><br>"+
 		"<input type=\"submit\" value=\"Save\">"+
 		"</form>")
+}
+
+func listPresentations(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		log.Errorf(ctx, "Can't parse query: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	q := datastore.NewQuery(datastorePresentationskind)
+
+	speaker, okSpeaker := params["speaker"]
+
+	if okSpeaker {
+		q = q.Filter("Speaker=", speaker[0])
+	}
+
+	presentations := make([]Presentation, 0, 10)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	q.GetAll(newCtx, &presentations)
+	if err != nil {
+		log.Errorf(ctx, "Can't get presentations: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// We don't want people to see voters. Just the vote count.
+	presentationsForView := make([]PresentationPublicView, 0, len(presentations))
+	for _, presentation := range presentations {
+		presentationsForView = append(presentationsForView, PresentationPublicView{
+			Title:       presentation.Title,
+			Description: presentation.Description,
+			Speaker:     presentation.Speaker,
+			Votes:       len(presentation.Voters),
+		})
+	}
+
+	data, err := json.Marshal(&presentationsForView)
+	if err != nil {
+		log.Errorf(ctx, "Failed to serialize presentations slice: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	io.Copy(w, bytes.NewReader(data))
 }
