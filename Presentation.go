@@ -16,6 +16,7 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/user"
 )
 
 const datastorePresentationskind = "Presentations"
@@ -188,4 +189,16 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.Copy(w, bytes.NewReader(data))
+}
+
+func upvotePresentation(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, "/")
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+	url, _ := user.LogoutURL(ctx, "/")
+	fmt.Fprintf(w, `Welcome, %s! (<a href="%s">sign out</a>)`, u, url)
 }
