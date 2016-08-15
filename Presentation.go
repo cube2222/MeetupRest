@@ -29,6 +29,7 @@ type Presentation struct {
 }
 
 type PresentationPublicView struct {
+	Key         int64
 	Title       string
 	Description string
 	Speaker     string
@@ -75,7 +76,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
 	myPresentation := Presentation{}
-	_, err = t.Next(&myPresentation)
+	key, err := t.Next(&myPresentation)
 	// No speaker retrieved
 	if err == datastore.Done {
 		fmt.Fprint(w, "No Presentation found.")
@@ -88,6 +89,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, err := json.Marshal(&PresentationPublicView{
+		Key:         key.IntID(),
 		Title:       myPresentation.Title,
 		Description: myPresentation.Description,
 		Speaker:     myPresentation.Speaker,
@@ -164,7 +166,7 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 
 	presentations := make([]Presentation, 0, 10)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	q.GetAll(newCtx, &presentations)
+	keys, err := q.GetAll(newCtx, &presentations)
 	if err != nil {
 		log.Errorf(ctx, "Can't get presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -173,8 +175,9 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 
 	// We don't want people to see voters. Just the vote count.
 	presentationsForView := make([]PresentationPublicView, 0, len(presentations))
-	for _, presentation := range presentations {
+	for index, presentation := range presentations {
 		presentationsForView = append(presentationsForView, PresentationPublicView{
+			Key:         keys[index].IntID(),
 			Title:       presentation.Title,
 			Description: presentation.Description,
 			Speaker:     presentation.Speaker,
