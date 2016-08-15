@@ -174,9 +174,9 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// We don't want people to see voters. Just the vote count.
-	presentationsForView := make([]PresentationPublicView, 0, len(presentations))
+	presentationsPublicView := make([]PresentationPublicView, 0, len(presentations))
 	for index, presentation := range presentations {
-		presentationsForView = append(presentationsForView, PresentationPublicView{
+		presentationsPublicView = append(presentationsPublicView, PresentationPublicView{
 			Key:         keys[index].IntID(),
 			Title:       presentation.Title,
 			Description: presentation.Description,
@@ -185,7 +185,7 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	data, err := json.Marshal(&presentationsForView)
+	data, err := json.Marshal(&presentationsPublicView)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize presentations slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

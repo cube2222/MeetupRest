@@ -28,6 +28,15 @@ type Speaker struct {
 	Company string
 }
 
+type SpeakerPublicView struct {
+	Key     int64
+	Name    string
+	Surname string
+	About   string
+	Email   string
+	Company string
+}
+
 type SpeakerUpdateForm struct {
 	CurrentName    string
 	CurrentSurname string
@@ -83,7 +92,7 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	t := q.Run(newCtx)
 
 	mySpeaker := Speaker{}
-	_, err = t.Next(&mySpeaker)
+	key, err := t.Next(&mySpeaker)
 	// No speaker retrieved
 	if err == datastore.Done {
 		fmt.Fprint(w, "No speaker found.")
@@ -95,7 +104,14 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	data, err := json.Marshal(&mySpeaker)
+	data, err := json.Marshal(&SpeakerPublicView{
+		Key:     key.IntID(),
+		Name:    mySpeaker.Name,
+		Surname: mySpeaker.Surname,
+		About:   mySpeaker.About,
+		Email:   mySpeaker.Email,
+		Company: mySpeaker.Company,
+	})
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -302,14 +318,26 @@ func listSpeakers(w http.ResponseWriter, r *http.Request) {
 	speakers := make([]Speaker, 0, 10)
 
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	_, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
+	keys, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
 	if err != nil {
 		log.Errorf(ctx, "Can't get speakers: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	data, err := json.Marshal(&speakers)
+	speakersPublicView := make([]SpeakerPublicView, 0, len(speakers))
+	for index, speaker := range speakers {
+		speakersPublicView = append(speakersPublicView, SpeakerPublicView{
+			Key:     keys[index].IntID(),
+			Name:    speaker.Name,
+			Surname: speaker.Surname,
+			About:   speaker.About,
+			Email:   speaker.Email,
+			Company: speaker.Company,
+		})
+	}
+
+	data, err := json.Marshal(&speakersPublicView)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize speakers slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

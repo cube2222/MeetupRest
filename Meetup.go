@@ -28,6 +28,15 @@ type Meetup struct {
 	VoteTimeEnd   time.Time
 }
 
+type MeetupPublicView struct {
+	Key           int64
+	Title         string
+	Description   string
+	Presentations []string
+	Date          time.Time
+	VoteTimeEnd   time.Time
+}
+
 type MeetupUpdateForm struct {
 	CurrentTitle   string
 	NewTitle       string
