@@ -54,7 +54,8 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 	m.HandleFunc("/", addMeetup).Methods("POST")
 	m.HandleFunc("/delete", deleteMeetup).Methods("DELETE")
 	m.HandleFunc("/update", updateMeetup).Methods("POST")
-	m.HandleFunc("/list", getAllMeetups).Methods("GET")
+	m.HandleFunc("/list", listMeetups).Methods("GET")
+	m.HandleFunc("/form/add", addMeetupForm).Methods("GET")
 
 	return nil
 }
@@ -119,27 +120,6 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, bytes.NewReader(data))
 }
 
-func getAllMeetups(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	meetups := make([]Meetup, 0, 10)
-	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(newCtx, &meetups)
-	if err != nil {
-		log.Errorf(ctx, "Can't get meetups: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(&meetups)
-	if err != nil {
-		log.Errorf(ctx, "Failed to serialize meetups slice: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	io.Copy(w, bytes.NewReader(data))
-}
-
 func addMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
@@ -171,6 +151,15 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", id.IntID())
+}
+
+func addMeetupForm(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "<h1>Adding Meetup Form</h1>"+
+		"<form action=\"/speaker/\" method=\"POST\">"+
+		"Title: <input type=\"text\" name=\"Title\"><br>"+
+		"Description: <textarea name=\"Description\"></textarea><br>"+
+		"<input type=\"submit\" value=\"Save\">"+
+		"</form>")
 }
 
 func deleteMeetup(w http.ResponseWriter, r *http.Request) {
