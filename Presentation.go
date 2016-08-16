@@ -177,7 +177,7 @@ const HTML = `
 	<h1>Adding Presentation Form</h1>
         <form action="/presentation/" method="POST">
 		Title: <input type="text" name="Title"><br>
-		Description: <textarea name="Description"></textarea><br>"+
+		Description: <textarea name="Description"></textarea><br>
             <div>
                 <label>Speaker:</label>
                 <select name="Speaker">
