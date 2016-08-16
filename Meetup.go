@@ -54,7 +54,8 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 	m.HandleFunc("/", addMeetup).Methods("POST")
 	m.HandleFunc("/delete", deleteMeetup).Methods("DELETE")
 	m.HandleFunc("/update", updateMeetup).Methods("POST")
-	m.HandleFunc("/list", getAllMeetups).Methods("GET")
+	m.HandleFunc("/list", listMeetups).Methods("GET")
+	m.HandleFunc("/form/add", addMeetupForm).Methods("GET")
 
 	return nil
 }
@@ -91,7 +92,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
 	myMeetup := Meetup{}
-	_, err = t.Next(&myMeetup)
+	key, err := t.Next(&myMeetup)
 
 	if err == datastore.Done {
 		fmt.Fprint(w, "No meetup found.")
@@ -103,30 +104,16 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	data, err := json.Marshal(&myMeetup)
+	data, err := json.Marshal(&MeetupPublicView{
+		Key:           key.IntID(),
+		Title:         myMeetup.Title,
+		Description:   myMeetup.Description,
+		Presentations: myMeetup.Presentations,
+		Date:          myMeetup.Date,
+		VoteTimeEnd:   myMeetup.VoteTimeEnd,
+	})
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize meetup: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	io.Copy(w, bytes.NewReader(data))
-}
-
-func getAllMeetups(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	meetups := make([]Meetup, 0, 10)
-	_, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(newCtx, &meetups)
-	if err != nil {
-		log.Errorf(ctx, "Can't get meetups: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(&meetups)
-	if err != nil {
-		log.Errorf(ctx, "Failed to serialize meetups slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -164,6 +151,15 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", id.IntID())
+}
+
+func addMeetupForm(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "<h1>Adding Meetup Form</h1>"+
+		"<form action=\"/meetup/\" method=\"POST\">"+
+		"Title: <input type=\"text\" name=\"Title\"><br>"+
+		"Description: <textarea name=\"Description\"></textarea><br>"+
+		"<input type=\"submit\" value=\"Save\">"+
+		"</form>")
 }
 
 func deleteMeetup(w http.ResponseWriter, r *http.Request) {
@@ -277,4 +273,37 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, "Meetup updated.")
+}
+
+func listMeetups(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+	meetups := make([]Meetup, 0, 10)
+
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	keys, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(newCtx, &meetups)
+	if err != nil {
+		log.Errorf(ctx, "Can't get meetups: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	meetupsPublicView := make([]MeetupPublicView, 0, len(meetups))
+	for index, meetup := range meetups {
+		meetupsPublicView = append(meetupsPublicView, MeetupPublicView{
+			Key:           keys[index].IntID(),
+			Title:         meetup.Title,
+			Description:   meetup.Description,
+			Presentations: meetup.Presentations,
+			Date:          meetup.Date,
+			VoteTimeEnd:   meetup.VoteTimeEnd,
+		})
+	}
+
+	data, err := json.Marshal(&meetupsPublicView)
+	if err != nil {
+		log.Errorf(ctx, "Failed to serialize meetups slice: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	io.Copy(w, bytes.NewReader(data))
 }
