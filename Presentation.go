@@ -42,6 +42,38 @@ type Option struct {
 	Value, Text string
 }
 
+const HTML_addForm = `
+	<h1>Adding Presentation Form</h1>
+        <form action="/presentation/" method="POST">
+		Title: <input type="text" name="Title"><br>
+		Description: <textarea name="Description"></textarea><br>
+            <div>
+                <label>Speaker:</label>
+                <select name="Speaker">
+                    {{range .}}
+                    <option value="{{.Value}}">{{.Text}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <input type="submit" value="Save">
+        </form>
+`
+
+const HTML_deleteForm = `
+	<h1>Deleting Presentation Form</h1>
+        <form action="/presentation/" method="DELETE">
+            <div>
+                <label>By Title:</label>
+                <select name="PresentationId">
+                    {{range .}}
+                    <option value="{{.Value}}">{{.Text}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <input type="submit" value="Remove">
+        </form>
+`
+
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
 func RegisterPresentationRoutes(m *mux.Router) error {
 	if m == nil {
@@ -49,8 +81,10 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	}
 	m.HandleFunc("/", getPresentation).Methods("GET")
 	m.HandleFunc("/", addPresentation).Methods("POST")
+	m.HandleFunc("/", removePresentation).Methods("DELETE")
 	m.HandleFunc("/list", listPresentations).Methods("GET")
 	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
+	m.HandleFunc("/form/delete", removePresentationForm).Methods("DELETE")
 
 	return nil
 }
@@ -143,6 +177,33 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%v", id.IntID())
 }
 
+func removePresentation(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	params, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		log.Errorf(ctx, "Can't parse query: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	presentationId, ok := params["PresentationId"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Presentation ID must be provided.")
+		return
+	}
+
+	key := datastore.NewKey(ctx, datastorePresentationskind, presentationId[0], 0, nil)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	if err = datastore.Delete(newCtx, key); err != nil {
+		log.Errorf(ctx, "Can't delete meetup: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusTeapot)
+	fmt.Fprint(w, "Meetup deleted successfully.")
+}
+
 func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	speakers := make([]Speaker, 0, 10)
@@ -163,7 +224,7 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	var placesPageTmpl *template.Template = template.Must(template.New("PlacesPage").Parse(HTML))
+	var placesPageTmpl *template.Template = template.Must(template.New("PlacesPage").Parse(HTML_addForm))
 
 	buf := bytes.Buffer{}
 	if err := placesPageTmpl.Execute(&buf, options); err != nil {
@@ -173,36 +234,35 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-const HTML = `
-	<h1>Adding Presentation Form</h1>
-        <form action="/presentation/" method="POST">
-		Title: <input type="text" name="Title"><br>
-		Description: <textarea name="Description"></textarea><br>
-            <div>
-                <label>Speaker:</label>
-                <select name="Speaker">
-                    {{range .}}
-                    <option value="{{.Value}}">{{.Text}}</option>
-                    {{end}}
-                </select>
-            </div>
-            <input type="submit" value="Save">
-        </form>
-`
+func removePresentationForm(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
 
-// func removePresentationForm(w http.ResponseWriter, r *http.ReadRequest) {
-// 	ctx := appengine.NewContext(r)
+	presentations := make([]Presentation, 0, 10)
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	keys, err := datastore.NewQuery(datastorePresentationskind).GetAll(newCtx, &presentations)
+	if err != nil {
+		log.Errorf(ctx, "Can't get Presentations: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-// 	presentations := make([]Presentation, 0, 10)
-// 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-// 	keys, err := datastore.NewQuery(datastorePresentationskind).GetAll(newCtx, &presentations)
-// 	if err != nil {
-// 		log.Errorf(ctx, "Can't get Presentations: %v", err)
-// 		w.WriteHeader(http.StatusInternalServerError)
-// 		return
-// 	}
+	options := make([]Option, 0, len(presentations))
+	for index, presentation := range presentations {
+		options = append(options, Option{
+			Value: strconv.FormatInt(keys[index].IntID(), 10),
+			Text:  presentation.Title,
+		})
+	}
 
-// }
+	var placesPageTmpl *template.Template = template.Must(template.New("PlacesPage").Parse(HTML_deleteForm))
+
+	buf := bytes.Buffer{}
+	if err := placesPageTmpl.Execute(&buf, options); err != nil {
+		fmt.Println("Failed to build page", err)
+	} else {
+		fmt.Fprint(w, buf.String())
+	}
+}
 
 func listPresentations(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
