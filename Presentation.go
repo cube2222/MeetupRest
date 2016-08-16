@@ -84,7 +84,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	m.HandleFunc("/", removePresentation).Methods("DELETE")
 	m.HandleFunc("/list", listPresentations).Methods("GET")
 	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
-	m.HandleFunc("/form/delete", removePresentationForm).Methods("DELETE")
+	m.HandleFunc("/form/delete", removePresentationForm).Methods("GET")
 
 	return nil
 }
@@ -194,14 +194,17 @@ func removePresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, datastorePresentationskind, presentationId[0], 0, nil)
+	keyInt, err := strconv.ParseInt(presentationId[0], 10, 32)
+
+	key := datastore.NewKey(ctx, datastorePresentationskind, "", keyInt, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	if err = datastore.Delete(newCtx, key); err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusTeapot)
-	fmt.Fprint(w, "Meetup deleted successfully.")
+	fmt.Fprintf(w, "Presentation deleted successfully. %s", key.AppID())
 }
 
 func addPresentationForm(w http.ResponseWriter, r *http.Request) {
