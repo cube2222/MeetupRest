@@ -155,7 +155,7 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 
 func addMeetupForm(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<h1>Adding Meetup Form</h1>"+
-		"<form action=\"/speaker/\" method=\"POST\">"+
+		"<form action=\"/meetup/\" method=\"POST\">"+
 		"Title: <input type=\"text\" name=\"Title\"><br>"+
 		"Description: <textarea name=\"Description\"></textarea><br>"+
 		"<input type=\"submit\" value=\"Save\">"+
