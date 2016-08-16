@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -138,13 +139,48 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 }
 
 func addPresentationForm(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+	speakers := make([]Speaker, 0, 10)
+
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	keys, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
+	if err != nil {
+		log.Errorf(ctx, "Can't get speakers: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	speakersPublicView := make([]SpeakerPublicView, 0, len(speakers))
+	for index, speaker := range speakers {
+		speakersPublicView = append(speakersPublicView, SpeakerPublicView{
+			Key:     keys[index].IntID(),
+			Name:    speaker.Name,
+			Surname: speaker.Surname,
+			About:   speaker.About,
+			Email:   speaker.Email,
+			Company: speaker.Company,
+		})
+	}
+
 	fmt.Fprint(w, "<h1>Adding Presentation Form</h1>"+
 		"<form action=\"/presentation/\" method=\"POST\">"+
 		"Title: <input type=\"text\" name=\"Title\"><br>"+
 		"Description: <textarea name=\"Description\"></textarea><br>"+
-		"Speaker: <input type=\"text\" name=\"Speaker\"><br>"+
+		genSelect(speakersPublicView)+
 		"<input type=\"submit\" value=\"Save\">"+
 		"</form>")
+}
+
+func genSelect(speakers []SpeakerPublicView) string {
+	var buffer bytes.Buffer
+	buffer.WriteString("<select name=\"Speaker\">")
+
+	for idx := 0; idx < len(speakers); idx++ {
+		buffer.WriteString("<option value=\"" + strconv.FormatInt(speakers[idx].Key, 10) + "\">" + speakers[idx].Name + " " + speakers[idx].Surname + "</option>")
+	}
+	buffer.WriteString("</select><br>")
+
+	return buffer.String()
 }
 
 func listPresentations(w http.ResponseWriter, r *http.Request) {
