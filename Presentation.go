@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,6 +36,10 @@ type PresentationPublicView struct {
 	Description string
 	Speaker     string
 	Votes       int
+}
+
+type Option struct {
+	Value, Text string
 }
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
@@ -150,38 +155,54 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	speakersPublicView := make([]SpeakerPublicView, 0, len(speakers))
+	options := make([]Option, 0, len(speakers))
 	for index, speaker := range speakers {
-		speakersPublicView = append(speakersPublicView, SpeakerPublicView{
-			Key:     keys[index].IntID(),
-			Name:    speaker.Name,
-			Surname: speaker.Surname,
-			About:   speaker.About,
-			Email:   speaker.Email,
-			Company: speaker.Company,
+		options = append(options, Option{
+			Value: strconv.FormatInt(keys[index].IntID(), 10),
+			Text:  speaker.Name + " " + speaker.Surname,
 		})
 	}
 
-	fmt.Fprint(w, "<h1>Adding Presentation Form</h1>"+
-		"<form action=\"/presentation/\" method=\"POST\">"+
-		"Title: <input type=\"text\" name=\"Title\"><br>"+
-		"Description: <textarea name=\"Description\"></textarea><br>"+
-		genSelect(speakersPublicView)+
-		"<input type=\"submit\" value=\"Save\">"+
-		"</form>")
-}
+	var placesPageTmpl *template.Template = template.Must(template.New("PlacesPage").Parse(HTML))
 
-func genSelect(speakers []SpeakerPublicView) string {
-	var buffer bytes.Buffer
-	buffer.WriteString("<select name=\"Speaker\">")
-
-	for idx := 0; idx < len(speakers); idx++ {
-		buffer.WriteString("<option value=\"" + strconv.FormatInt(speakers[idx].Key, 10) + "\">" + speakers[idx].Name + " " + speakers[idx].Surname + "</option>")
+	buf := bytes.Buffer{}
+	if err := placesPageTmpl.Execute(&buf, options); err != nil {
+		fmt.Println("Failed to build page", err)
+	} else {
+		fmt.Fprint(w, buf.String())
 	}
-	buffer.WriteString("</select><br>")
-
-	return buffer.String()
 }
+
+const HTML = `
+	<h1>Adding Presentation Form</h1>
+        <form action="/presentation/" method="POST">
+		Title: <input type="text" name="Title"><br>
+		Description: <textarea name="Description"></textarea><br>"+
+            <div>
+                <label>Speaker:</label>
+                <select name="Speaker">
+                    {{range .}}
+                    <option value="{{.Value}}">{{.Text}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <input type="submit" value="Save">
+        </form>
+`
+
+// func removePresentationForm(w http.ResponseWriter, r *http.ReadRequest) {
+// 	ctx := appengine.NewContext(r)
+
+// 	presentations := make([]Presentation, 0, 10)
+// 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+// 	keys, err := datastore.NewQuery(datastorePresentationskind).GetAll(newCtx, &presentations)
+// 	if err != nil {
+// 		log.Errorf(ctx, "Can't get Presentations: %v", err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
+
+// }
 
 func listPresentations(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
