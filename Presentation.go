@@ -26,7 +26,7 @@ const datastorePresentationskind = "Presentations"
 type Presentation struct {
 	Title       string
 	Description string
-	Speaker     string
+	Speaker     int64
 	Voters      []string
 }
 
@@ -128,11 +128,20 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	speakerRetrieved := Speaker{}
+	speakerKey := datastore.NewKey(ctx, datastoreSpeakersKind, "", myPresentation.Speaker, nil)
+	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Get(newCtx, speakerKey, &speakerRetrieved)
+	if err != nil {
+		log.Infof(ctx, "Couldn't get speaker with key: %v", key.IntID())
+	}
+
 	data, err := json.Marshal(&PresentationPublicView{
 		Key:         key.IntID(),
 		Title:       myPresentation.Title,
 		Description: myPresentation.Description,
-		Speaker:     myPresentation.Speaker,
+		Speaker:     fmt.Sprintf("%v %v", speakerRetrieved.Name, speakerRetrieved.Surname),
 		Votes:       len(myPresentation.Voters),
 	})
 	if err != nil {
@@ -158,7 +167,7 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 	decoder := schema.NewDecoder()
 	decoder.Decode(p, r.PostForm)
 
-	if p.Title == "" || p.Speaker == "" || p.Description == "" {
+	if p.Title == "" || p.Speaker == 0 || p.Description == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Fields Title, Speaker and Description are mandatory!")
 		return
@@ -293,6 +302,16 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	speakers := make([]Speaker, len(presentations))
+	for i := 0; i < len(presentations); i++ {
+		speakerKey := datastore.NewKey(ctx, datastoreSpeakersKind, "", presentations[i].Speaker, nil)
+		newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+		err = datastore.Get(newCtx, speakerKey, &speakers[i])
+		if err != nil {
+			log.Infof(ctx, "Couldn't get speaker with key: %v", speakerKey.IntID())
+		}
+	}
+
 	// We don't want people to see voters. Just the vote count.
 	presentationsPublicView := make([]PresentationPublicView, 0, len(presentations))
 	for index, presentation := range presentations {
@@ -300,7 +319,7 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 			Key:         keys[index].IntID(),
 			Title:       presentation.Title,
 			Description: presentation.Description,
-			Speaker:     presentation.Speaker,
+			Speaker:     fmt.Sprintf("%v %v", speakers[index].Name, speakers[index].Surname),
 			Votes:       len(presentation.Voters),
 		})
 	}
