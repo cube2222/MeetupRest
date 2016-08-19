@@ -21,7 +21,7 @@ import (
 	"google.golang.org/appengine/user"
 )
 
-const datastorePresentationskind = "Presentations"
+const datastorePresentationsKind = "Presentations"
 
 type Presentation struct {
 	Title       string
@@ -101,7 +101,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery(datastorePresentationskind).Limit(1)
+	q := datastore.NewQuery(datastorePresentationsKind).Limit(1)
 
 	if title, ok := params["title"]; ok == true {
 		q = q.Filter("Title=", title[0])
@@ -175,7 +175,7 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, datastorePresentationskind, "", 0, nil)
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", 0, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, p)
 	if err != nil {
@@ -207,7 +207,7 @@ func removePresentation(w http.ResponseWriter, r *http.Request) {
 
 	keyInt, err := strconv.ParseInt(presentationId[0], 10, 32)
 
-	key := datastore.NewKey(ctx, datastorePresentationskind, "", keyInt, nil)
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", keyInt, nil)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	if err = datastore.Delete(newCtx, key); err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
@@ -253,7 +253,7 @@ func removePresentationForm(w http.ResponseWriter, r *http.Request) {
 
 	presentations := make([]Presentation, 0, 10)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	keys, err := datastore.NewQuery(datastorePresentationskind).GetAll(newCtx, &presentations)
+	keys, err := datastore.NewQuery(datastorePresentationsKind).GetAll(newCtx, &presentations)
 	if err != nil {
 		log.Errorf(ctx, "Can't get Presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -287,18 +287,25 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := datastore.NewQuery(datastorePresentationskind)
+	q := datastore.NewQuery(datastorePresentationsKind)
 
 	speaker, okSpeaker := params["speaker"]
 
 	if okSpeaker {
-		q = q.Filter("Speaker=", speaker[0])
+		speakerId, err := strconv.ParseInt(speaker[0], 10, 64)
+		if err != nil {
+			log.Errorf(ctx, "Can't parse to int64, error: %v", err)
+			return
+		}
+		q = q.Filter("Speaker=", speakerId)
 	}
 
 	presentations := make([]Presentation, 0, 10)
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	keys, err := q.GetAll(newCtx, &presentations)
 	if err != nil {
+		// Can't get presentations: datastore: cannot load field
+		// "Speaker" into a "MeetupRest.Presentation": type mismatch: string versus int64
 		log.Errorf(ctx, "Can't get presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -353,7 +360,7 @@ func upvotePresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, datastorePresentationskind, "", ID, nil)
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", ID, nil)
 
 	presentation := Presentation{}
 
@@ -398,7 +405,7 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := datastore.NewKey(ctx, datastorePresentationskind, "", ID, nil)
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", ID, nil)
 
 	presentation := Presentation{}
 
@@ -409,6 +416,52 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
 		return
 	}
+	if contains(presentation.Voters, u.Email) == true {
+		fmt.Fprint(w, "Sorry, you already upvoted this presentation.")
+		return
+	}
+
+	presentation.Voters = append(presentation.Voters, u.Email)
+
+	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	_, err = datastore.Put(newCtx, key, &presentation)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
+	}
+	fmt.Fprint(w, "Upvoted!")
+}
+
+func downvotePresentation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	ctx := appengine.NewContext(r)
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/presentation/%v/downvote", vars["ID"]))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Please provide a valid ID.")
+		return
+	}
+
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", ID, nil)
+
+	presentation := Presentation{}
+
+	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Get(newCtx, key, &presentation)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
+		return
+	}
+
 	if contains(presentation.Voters, u.Email) == false {
 		fmt.Fprint(w, "Sorry, you haven't upvoted this presentation yet.")
 		return
