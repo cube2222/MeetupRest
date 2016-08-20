@@ -304,8 +304,6 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
 	keys, err := q.GetAll(newCtx, &presentations)
 	if err != nil {
-		// Can't get presentations: datastore: cannot load field
-		// "Speaker" into a "MeetupRest.Presentation": type mismatch: string versus int64
 		log.Errorf(ctx, "Can't get presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
