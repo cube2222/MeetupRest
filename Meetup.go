@@ -15,6 +15,7 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"strconv"
 )
 
 const datastoreMeetupsKind = "Meetups"
@@ -22,7 +23,7 @@ const datastoreMeetupsKind = "Meetups"
 type Meetup struct {
 	Title         string
 	Description   string
-	Presentations []string
+	Presentations []int64
 	Date          time.Time
 	VoteTimeEnd   time.Time
 }
@@ -31,7 +32,7 @@ type MeetupPublicView struct {
 	Key           int64
 	Title         string
 	Description   string
-	Presentations []string
+	Presentations []int64
 	Date          time.Time
 	VoteTimeEnd   time.Time
 }
@@ -49,7 +50,7 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
-	m.HandleFunc("/", getMeetup).Methods("GET")
+	m.HandleFunc("/{ID}/", getMeetup).Methods("GET")
 	m.HandleFunc("/", addMeetup).Methods("POST")
 	m.HandleFunc("/delete", deleteMeetup).Methods("DELETE")
 	m.HandleFunc("/update", updateMeetup).Methods("POST")
@@ -62,49 +63,28 @@ func RegisterMeetupRoutes(m *mux.Router) error {
 func getMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
+	vars := mux.Vars(r)
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
 	if err != nil {
-		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	q := datastore.NewQuery(datastoreMeetupsKind).Limit(1)
-
-	if title, ok := params["title"]; ok {
-		q = q.Filter("Title=", title[0])
-	}
-
-	if description, ok := params["description"]; ok {
-		q = q.Filter("Description=", description[0])
-	}
-
-	if presentation, ok := params["presentation"]; ok {
-		//TODO: Add the ability to add tables
-		q = q.Filter("Presentations=", presentation[0])
-	}
-
-	if date, ok := params["date"]; ok {
-		q = q.Filter("Date=", date[0])
+		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	t := q.Run(newCtx)
+	meetup, err := GetMeetupByKey(newCtx, ID)
 	done()
-	myMeetup := Meetup{}
-	key, err := t.Next(&myMeetup)
-
-	if err == datastore.Done {
-		fmt.Fprint(w, "No meetup found.")
+	if err == datastore.ErrNoSuchEntity {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Couldn't find meetup with id: %v", ID)
 		return
 	}
-	// Some other error.
 	if err != nil {
-		log.Errorf(ctx, "Can't get meetup: %v", err)
+		log.Errorf(ctx, "Couldn't get meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	meetupPublicView := myMeetup.GetPublicView(key.IntID())
+
+	meetupPublicView := meetup.GetPublicView(ID)
 	err = meetupPublicView.WriteTo(w)
 	if err != nil {
 		log.Errorf(ctx, "Failed to write meetup: %v", err)
@@ -299,6 +279,13 @@ func listMeetups(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func GetMeetupByKey(ctx context.Context, key int64) (Meetup, error) {
+	meetup := Meetup{}
+	meetupKey := datastore.NewKey(ctx, datastoreMeetupsKind, "", key, nil)
+	err := datastore.Get(ctx, meetupKey, &meetup)
+	return meetup, err
 }
 
 func (m *Meetup) GetPublicView(key int64) MeetupPublicView {

@@ -79,7 +79,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering presentation routes")
 	}
-	m.HandleFunc("/", getPresentation).Methods("GET")
+	m.HandleFunc("/{ID}/", getPresentation).Methods("GET")
 	m.HandleFunc("/", addPresentation).Methods("POST")
 	m.HandleFunc("/", removePresentation).Methods("DELETE")
 	m.HandleFunc("/list", listPresentations).Methods("GET")
@@ -94,53 +94,36 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 func getPresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
+	vars := mux.Vars(r)
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
 	if err != nil {
-		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	q := datastore.NewQuery(datastorePresentationsKind).Limit(1)
-
-	if title, ok := params["title"]; ok {
-		q = q.Filter("Title=", title[0])
-	}
-
-	if speaker, ok := params["speaker"]; ok {
-		q = q.Filter("Speaker=", speaker[0])
-	}
-
-	if description, ok := params["description"]; ok {
-		q = q.Filter("Description=", description[0])
+		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	t := q.Run(newCtx)
+	presentation, err := GetPresentationByKey(newCtx, ID)
 	done()
-	myPresentation := Presentation{}
-	key, err := t.Next(&myPresentation)
-	// No speaker retrieved
-	if err == datastore.Done {
-		fmt.Fprint(w, "No Presentation found.")
+	if err == datastore.ErrNoSuchEntity {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Couldn't find presentation with id: %v", ID)
 		return
 	}
-	// Some other error
 	if err != nil {
-		log.Errorf(ctx, "Can't get presentation: %v", err)
+		log.Errorf(ctx, "Couldn't get presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	newCtx, done = context.WithTimeout(ctx, time.Second*2)
-	speakerRetrieved, err := GetSpeakerByKey(newCtx, myPresentation.Speaker)
+	speakerRetrieved, err := GetSpeakerByKey(newCtx, presentation.Speaker)
 	done()
-
 	if err != nil {
-		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", key.IntID(), err)
+		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", ID, err)
 	}
-	speakerPublicView := myPresentation.GetPublicView(key.IntID(), speakerRetrieved.GetSpeakerFullName())
-	err = speakerPublicView.WriteTo(w)
+
+	presentationPublicView := presentation.GetPublicView(ID, speakerRetrieved.GetSpeakerFullName())
+	err = presentationPublicView.WriteTo(w)
 	if err != nil {
 		log.Errorf(ctx, "Failed to write presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -437,6 +420,13 @@ func contains(slice []string, text string) bool {
 		}
 	}
 	return false
+}
+
+func GetPresentationByKey(ctx context.Context, key int64) (Presentation, error) {
+	presentation := Presentation{}
+	presentationKey := datastore.NewKey(ctx, datastorePresentationsKind, "", key, nil)
+	err := datastore.Get(ctx, presentationKey, &presentation)
+	return presentation, err
 }
 
 func (p *Presentation) GetPublicView(key int64, speaker string) PresentationPublicView {

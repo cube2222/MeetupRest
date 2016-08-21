@@ -15,6 +15,7 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"strconv"
 )
 
 const datastoreSpeakersKind = "Speakers"
@@ -52,7 +53,7 @@ func RegisterSpeakerRoutes(m *mux.Router) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering speaker routes")
 	}
-	m.HandleFunc("/", getSpeaker).Methods("GET")
+	m.HandleFunc("/{ID}/", getSpeaker).Methods("GET")
 	m.HandleFunc("/", addSpeaker).Methods("POST")
 	m.HandleFunc("/list", listSpeakers).Methods("GET")
 	m.HandleFunc("/update", updateSpeaker).Methods("POST")
@@ -66,46 +67,29 @@ func RegisterSpeakerRoutes(m *mux.Router) error {
 func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
+	vars := mux.Vars(r)
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
 	if err != nil {
-		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	q := datastore.NewQuery(datastoreSpeakersKind).Limit(1)
-
-	if name, ok := params["name"]; ok {
-		q = q.Filter("Name=", name[0])
-	}
-
-	if surname, ok := params["surname"]; ok {
-		q = q.Filter("Surname=", surname[0])
-	}
-
-	if email, ok := params["email"]; ok {
-		q = q.Filter("Email=", email[0])
+		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	t := q.Run(newCtx)
+	speaker, err := GetSpeakerByKey(newCtx, ID)
 	done()
-
-	mySpeaker := Speaker{}
-	key, err := t.Next(&mySpeaker)
-	// No speaker retrieved
-	if err == datastore.Done {
-		fmt.Fprint(w, "No speaker found.")
+	if err == datastore.ErrNoSuchEntity {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Couldn't find speaker with id: %v", ID)
 		return
 	}
-	// Some other error.
 	if err != nil {
-		log.Errorf(ctx, "Can't get speaker: %v", err)
+		log.Errorf(ctx, "Couldn't get speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	speakerPublicView := mySpeaker.GetPublicView(key.IntID())
-	speakerPublicView.WriteTo(w)
+
+	speakerPublicView := speaker.GetPublicView(ID)
+	err = speakerPublicView.WriteTo(w)
 	if err != nil {
 		log.Errorf(ctx, "Failed to write speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
