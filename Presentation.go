@@ -139,13 +139,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", key.IntID(), err)
 	}
 
-	data, err := json.Marshal(&PresentationPublicView{
-		Key:         key.IntID(),
-		Title:       myPresentation.Title,
-		Description: myPresentation.Description,
-		Speaker:     fmt.Sprintf("%v %v", speakerRetrieved.Name, speakerRetrieved.Surname),
-		Votes:       len(myPresentation.Voters),
-	})
+	data, err := json.Marshal(&myPresentation.GetPublicView(key.IntID(), fmt.Sprintf("%v %v", speakerRetrieved.Name, speakerRetrieved.Surname)))
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
