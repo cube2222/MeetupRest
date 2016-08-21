@@ -345,3 +345,14 @@ func listSpeakers(w http.ResponseWriter, r *http.Request) {
 	}
 	io.Copy(w, bytes.NewReader(data))
 }
+
+func GetSpeakerByKey(ctx context.Context, key int64) (Speaker, error) {
+	speaker := Speaker{}
+	speakerKey := datastore.NewKey(ctx, datastoreSpeakersKind, "", key, nil)
+	err := datastore.Get(ctx, speakerKey, &speaker)
+	return speaker, err
+}
+
+func (speaker *Speaker) GetSpeakerFullName() string {
+	return fmt.Sprintf("%v %v", speaker.Name, speaker.Surname)
+}

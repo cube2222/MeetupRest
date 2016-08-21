@@ -131,15 +131,14 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	speakerRetrieved := Speaker{}
-	speakerKey := datastore.NewKey(ctx, datastoreSpeakersKind, "", myPresentation.Speaker, nil)
 	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Get(newCtx, speakerKey, &speakerRetrieved)
+	speakerRetrieved, err := GetSpeakerByKey(newCtx, myPresentation.Speaker)
+
 	if err != nil {
 		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", key.IntID(), err)
 	}
-
-	data, err := json.Marshal(&myPresentation.GetPublicView(key.IntID(), fmt.Sprintf("%v %v", speakerRetrieved.Name, speakerRetrieved.Surname)))
+	speakerPublicView := myPresentation.GetPublicView(key.IntID(), speakerRetrieved.GetSpeakerFullName())
+	data, err := json.Marshal(&speakerPublicView)
 	if err != nil {
 		log.Errorf(ctx, "Failed to serialize presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -305,11 +304,10 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 
 	speakers := make([]Speaker, len(presentations))
 	for i := 0; i < len(presentations); i++ {
-		speakerKey := datastore.NewKey(ctx, datastoreSpeakersKind, "", presentations[i].Speaker, nil)
 		newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-		err = datastore.Get(newCtx, speakerKey, &speakers[i])
+		speakers[i], err = GetSpeakerByKey(newCtx, presentations[i].Speaker)
 		if err != nil {
-			log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", speakerKey.IntID(), err)
+			log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", presentations[i].Speaker, err)
 		}
 	}
 
@@ -318,7 +316,7 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 	for index, presentation := range presentations {
 		presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(
 			keys[index].IntID(),
-			fmt.Sprintf("%v %v", speakers[index].Name, speakers[index].Surname),
+			speakers[index].GetSpeakerFullName(),
 		))
 	}
 
