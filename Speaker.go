@@ -371,7 +371,7 @@ func (s *SpeakerPublicView) WriteTo(w io.Writer) error {
 	return e.Encode(s)
 }
 
-func WriteSpeakersPublicView(speakers []PresentationPublicView, w io.Writer) error {
+func WriteSpeakersPublicView(speakers []SpeakerPublicView, w io.Writer) error {
 	e := json.NewEncoder(w)
 	return e.Encode(speakers)
 }

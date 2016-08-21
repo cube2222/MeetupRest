@@ -1,7 +1,6 @@
 package MeetupRest
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -105,20 +104,13 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	data, err := json.Marshal(&MeetupPublicView{
-		Key:           key.IntID(),
-		Title:         myMeetup.Title,
-		Description:   myMeetup.Description,
-		Presentations: myMeetup.Presentations,
-		Date:          myMeetup.Date,
-		VoteTimeEnd:   myMeetup.VoteTimeEnd,
-	})
+	meetupPublicView := myMeetup.GetPublicView(key.IntID())
+	err = meetupPublicView.WriteTo(w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize meetup: %v", err)
+		log.Errorf(ctx, "Failed to write meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	io.Copy(w, bytes.NewReader(data))
 }
 
 func addMeetup(w http.ResponseWriter, r *http.Request) {
@@ -298,21 +290,39 @@ func listMeetups(w http.ResponseWriter, r *http.Request) {
 
 	meetupsPublicView := make([]MeetupPublicView, 0, len(meetups))
 	for index, meetup := range meetups {
-		meetupsPublicView = append(meetupsPublicView, MeetupPublicView{
-			Key:           keys[index].IntID(),
-			Title:         meetup.Title,
-			Description:   meetup.Description,
-			Presentations: meetup.Presentations,
-			Date:          meetup.Date,
-			VoteTimeEnd:   meetup.VoteTimeEnd,
-		})
+		meetupsPublicView = append(meetupsPublicView, meetup.GetPublicView(keys[index].IntID()))
 	}
 
-	data, err := json.Marshal(&meetupsPublicView)
+	err = WriteMeetupPublicView(meetupsPublicView, w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize meetups slice: %v", err)
+		log.Errorf(ctx, "Failed to write meetups slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	io.Copy(w, bytes.NewReader(data))
+}
+
+func (m *Meetup) GetPublicView(key int64) MeetupPublicView {
+	return MeetupPublicView{
+		Key:           key,
+		Title:         m.Title,
+		Description:   m.Description,
+		Presentations: m.Presentations,
+		Date:          m.Date,
+		VoteTimeEnd:   m.VoteTimeEnd,
+	}
+}
+
+func (m *Meetup) WriteTo(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(m)
+}
+
+func (m *MeetupPublicView) WriteTo(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(m)
+}
+
+func WriteMeetupPublicView(meetups []MeetupPublicView, w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(meetups)
 }
