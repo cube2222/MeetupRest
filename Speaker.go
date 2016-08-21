@@ -1,7 +1,6 @@
 package MeetupRest
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -105,20 +104,13 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	data, err := json.Marshal(&SpeakerPublicView{
-		Key:     key.IntID(),
-		Name:    mySpeaker.Name,
-		Surname: mySpeaker.Surname,
-		About:   mySpeaker.About,
-		Email:   mySpeaker.Email,
-		Company: mySpeaker.Company,
-	})
+	speakerPublicView := mySpeaker.GetPublicView(key.IntID())
+	speakerPublicView.WriteTo(w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize speaker: %v", err)
+		log.Errorf(ctx, "Failed to write speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	io.Copy(w, bytes.NewReader(data))
 }
 
 func addSpeaker(w http.ResponseWriter, r *http.Request) {
@@ -336,23 +328,15 @@ func listSpeakers(w http.ResponseWriter, r *http.Request) {
 
 	speakersPublicView := make([]SpeakerPublicView, 0, len(speakers))
 	for index, speaker := range speakers {
-		speakersPublicView = append(speakersPublicView, SpeakerPublicView{
-			Key:     keys[index].IntID(),
-			Name:    speaker.Name,
-			Surname: speaker.Surname,
-			About:   speaker.About,
-			Email:   speaker.Email,
-			Company: speaker.Company,
-		})
+		speakersPublicView = append(speakersPublicView, speaker.GetPublicView(keys[index].IntID()))
 	}
 
-	data, err := json.Marshal(&speakersPublicView)
+	err = WriteSpeakersPublicView(speakersPublicView, w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize speakers slice: %v", err)
+		log.Errorf(ctx, "Failed to write speakers slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	io.Copy(w, bytes.NewReader(data))
 }
 
 func GetSpeakerByKey(ctx context.Context, key int64) (Speaker, error) {
@@ -364,4 +348,30 @@ func GetSpeakerByKey(ctx context.Context, key int64) (Speaker, error) {
 
 func (speaker *Speaker) GetSpeakerFullName() string {
 	return fmt.Sprintf("%v %v", speaker.Name, speaker.Surname)
+}
+
+func (s *Speaker) GetPublicView(key int64) SpeakerPublicView {
+	return SpeakerPublicView{
+		Key:     key,
+		Name:    s.Name,
+		Surname: s.Surname,
+		About:   s.About,
+		Email:   s.Email,
+		Company: s.Company,
+	}
+}
+
+func (s *Speaker) WriteTo(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(s)
+}
+
+func (s *SpeakerPublicView) WriteTo(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(s)
+}
+
+func WriteSpeakersPublicView(speakers []PresentationPublicView, w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(speakers)
 }
