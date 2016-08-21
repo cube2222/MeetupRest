@@ -42,7 +42,7 @@ type Option struct {
 	Value, Text string
 }
 
-const HTML_addForm = `
+const HTMLAddForm = `
 	<h1>Adding Presentation Form</h1>
         <form action="/presentation/" method="POST">
 		Title: <input type="text" name="Title"><br>
@@ -59,7 +59,7 @@ const HTML_addForm = `
         </form>
 `
 
-const HTML_deleteForm = `
+const HTMLDeleteForm = `
 	<h1>Deleting Presentation Form</h1>
         <form action="/presentation/" method="DELETE">
             <div>
@@ -77,7 +77,7 @@ const HTML_deleteForm = `
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
 func RegisterPresentationRoutes(m *mux.Router) error {
 	if m == nil {
-		errors.New("m may not be nil when registering presentation routes")
+		return errors.New("m may not be nil when registering presentation routes")
 	}
 	m.HandleFunc("/", getPresentation).Methods("GET")
 	m.HandleFunc("/", addPresentation).Methods("POST")
@@ -103,20 +103,21 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 
 	q := datastore.NewQuery(datastorePresentationsKind).Limit(1)
 
-	if title, ok := params["title"]; ok == true {
+	if title, ok := params["title"]; ok {
 		q = q.Filter("Title=", title[0])
 	}
 
-	if speaker, ok := params["speaker"]; ok == true {
+	if speaker, ok := params["speaker"]; ok {
 		q = q.Filter("Speaker=", speaker[0])
 	}
 
-	if description, ok := params["description"]; ok == true {
+	if description, ok := params["description"]; ok {
 		q = q.Filter("Description=", description[0])
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
+	done()
 	myPresentation := Presentation{}
 	key, err := t.Next(&myPresentation)
 	// No speaker retrieved
@@ -131,8 +132,9 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
 	speakerRetrieved, err := GetSpeakerByKey(newCtx, myPresentation.Speaker)
+	done()
 
 	if err != nil {
 		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", key.IntID(), err)
@@ -169,8 +171,9 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := datastore.NewKey(ctx, datastorePresentationsKind, "", 0, nil)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, p)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -191,18 +194,20 @@ func removePresentation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	presentationId, ok := params["PresentationId"]
+	presentationID, ok := params["PresentationId"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Presentation ID must be provided.")
 		return
 	}
 
-	keyInt, err := strconv.ParseInt(presentationId[0], 10, 32)
+	keyInt, err := strconv.ParseInt(presentationID[0], 10, 32)
 
 	key := datastore.NewKey(ctx, datastorePresentationsKind, "", keyInt, nil)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	if err = datastore.Delete(newCtx, key); err != nil {
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Delete(newCtx, key)
+	done()
+	if err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -215,8 +220,9 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	speakers := make([]Speaker, 0, 10)
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	keys, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't get speakers: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -231,7 +237,7 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	var placesPageTmpl *template.Template = template.Must(template.New("PlacesPage").Parse(HTML_addForm))
+	placesPageTmpl := template.Must(template.New("PlacesPage").Parse(HTMLAddForm))
 
 	buf := bytes.Buffer{}
 	if err := placesPageTmpl.Execute(&buf, options); err != nil {
@@ -245,8 +251,9 @@ func removePresentationForm(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	presentations := make([]Presentation, 0, 10)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	keys, err := datastore.NewQuery(datastorePresentationsKind).GetAll(newCtx, &presentations)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't get Presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -261,7 +268,7 @@ func removePresentationForm(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	var placesPageTmpl *template.Template = template.Must(template.New("PlacesPage").Parse(HTML_deleteForm))
+	placesPageTmpl := template.Must(template.New("PlacesPage").Parse(HTMLDeleteForm))
 
 	buf := bytes.Buffer{}
 	if err := placesPageTmpl.Execute(&buf, options); err != nil {
@@ -285,17 +292,18 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 	speaker, okSpeaker := params["speaker"]
 
 	if okSpeaker {
-		speakerId, err := strconv.ParseInt(speaker[0], 10, 64)
+		speakerID, err := strconv.ParseInt(speaker[0], 10, 64)
 		if err != nil {
 			log.Errorf(ctx, "Can't parse to int64, error: %v", err)
 			return
 		}
-		q = q.Filter("Speaker=", speakerId)
+		q = q.Filter("Speaker=", speakerID)
 	}
 
 	presentations := make([]Presentation, 0, 10)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	keys, err := q.GetAll(newCtx, &presentations)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't get presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -304,8 +312,9 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 
 	speakers := make([]Speaker, len(presentations))
 	for i := 0; i < len(presentations); i++ {
-		newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+		newCtx, done = context.WithTimeout(ctx, time.Second*2)
 		speakers[i], err = GetSpeakerByKey(newCtx, presentations[i].Speaker)
+		done()
 		if err != nil {
 			log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", presentations[i].Speaker, err)
 		}
@@ -351,22 +360,24 @@ func upvotePresentation(w http.ResponseWriter, r *http.Request) {
 
 	presentation := Presentation{}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	err = datastore.Get(newCtx, key, &presentation)
+	done()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
 		return
 	}
-	if contains(presentation.Voters, u.Email) == true {
+	if contains(presentation.Voters, u.Email) {
 		fmt.Fprint(w, "Sorry, you already upvoted this presentation.")
 		return
 	}
 
 	presentation.Voters = append(presentation.Voters, u.Email)
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, &presentation)
+	done()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
@@ -396,22 +407,24 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 
 	presentation := Presentation{}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	err = datastore.Get(newCtx, key, &presentation)
+	done()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
 		return
 	}
-	if contains(presentation.Voters, u.Email) == true {
+	if contains(presentation.Voters, u.Email) {
 		fmt.Fprint(w, "Sorry, you already upvoted this presentation.")
 		return
 	}
 
 	presentation.Voters = append(presentation.Voters, u.Email)
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, &presentation)
+	done()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)

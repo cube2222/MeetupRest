@@ -76,20 +76,21 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 
 	q := datastore.NewQuery(datastoreSpeakersKind).Limit(1)
 
-	if name, ok := params["name"]; ok == true {
+	if name, ok := params["name"]; ok {
 		q = q.Filter("Name=", name[0])
 	}
 
-	if surname, ok := params["surname"]; ok == true {
+	if surname, ok := params["surname"]; ok {
 		q = q.Filter("Surname=", surname[0])
 	}
 
-	if email, ok := params["email"]; ok == true {
+	if email, ok := params["email"]; ok {
 		q = q.Filter("Email=", email[0])
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
+	done()
 
 	mySpeaker := Speaker{}
 	key, err := t.Next(&mySpeaker)
@@ -142,8 +143,9 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := datastore.NewKey(ctx, datastoreSpeakersKind, "", 0, nil)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, s)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -199,8 +201,9 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("Surname=", suf.CurrentSurname)
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
+	done()
 
 	mySpeaker := &Speaker{}
 	key, err := t.Next(mySpeaker)
@@ -236,8 +239,9 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		mySpeaker.About = suf.NewAbout
 	}
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, mySpeaker)
+	done()
 	log.Infof(ctx, key.String())
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
@@ -295,8 +299,9 @@ func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("Email=", email[0])
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
+	done()
 	mySpeaker := &Speaker{}
 	key, err := t.Next(mySpeaker)
 	if err == datastore.Done {
@@ -304,10 +309,13 @@ func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-	if err = datastore.Delete(newCtx, key); err != nil {
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Delete(newCtx, key)
+	done()
+	if err != nil {
 		log.Errorf(ctx, "Can't delete speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Speaker deleted successfully.")
@@ -317,8 +325,9 @@ func listSpeakers(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	speakers := make([]Speaker, 0, 10)
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	keys, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't get speakers: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

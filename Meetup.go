@@ -72,25 +72,26 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 
 	q := datastore.NewQuery(datastoreMeetupsKind).Limit(1)
 
-	if title, ok := params["title"]; ok == true {
+	if title, ok := params["title"]; ok {
 		q = q.Filter("Title=", title[0])
 	}
 
-	if description, ok := params["description"]; ok == true {
+	if description, ok := params["description"]; ok {
 		q = q.Filter("Description=", description[0])
 	}
 
-	if presentation, ok := params["presentation"]; ok == true {
+	if presentation, ok := params["presentation"]; ok {
 		//TODO: Add the ability to add tables
 		q = q.Filter("Presentations=", presentation[0])
 	}
 
-	if date, ok := params["date"]; ok == true {
+	if date, ok := params["date"]; ok {
 		q = q.Filter("Date=", date[0])
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
+	done()
 	myMeetup := Meetup{}
 	key, err := t.Next(&myMeetup)
 
@@ -141,8 +142,9 @@ func addMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := datastore.NewKey(ctx, datastoreMeetupsKind, "", 0, nil)
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	id, err := datastore.Put(newCtx, key, m)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -190,8 +192,9 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		q = q.Filter("ID=", ID[0])
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := q.Run(newCtx)
+	done()
 	myMeetup := Meetup{}
 	key, err := t.Next(&myMeetup)
 	if err == datastore.Done {
@@ -199,10 +202,13 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-	if err = datastore.Delete(newCtx, key); err != nil {
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Delete(newCtx, key)
+	done()
+	if err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Meetup deleted successfully.")
@@ -228,11 +234,12 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	t := datastore.NewQuery(datastoreMeetupsKind).
 		Filter("Title=", muf.CurrentTitle).
 		Limit(1).
 		Run(newCtx)
+	done()
 	myMeetup := &Meetup{}
 	key, err := t.Next(myMeetup)
 
@@ -263,8 +270,9 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	}*/
 
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, myMeetup)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -279,8 +287,9 @@ func listMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	meetups := make([]Meetup, 0, 10)
 
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
 	keys, err := datastore.NewQuery(datastoreMeetupsKind).GetAll(newCtx, &meetups)
+	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetups: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
