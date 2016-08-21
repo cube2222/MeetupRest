@@ -322,13 +322,10 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 	// We don't want people to see voters. Just the vote count.
 	presentationsPublicView := make([]PresentationPublicView, 0, len(presentations))
 	for index, presentation := range presentations {
-		presentationsPublicView = append(presentationsPublicView, PresentationPublicView{
-			Key:         keys[index].IntID(),
-			Title:       presentation.Title,
-			Description: presentation.Description,
-			Speaker:     fmt.Sprintf("%v %v", speakers[index].Name, speakers[index].Surname),
-			Votes:       len(presentation.Voters),
-		})
+		presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(
+			keys[index].IntID(),
+			fmt.Sprintf("%v %v", speakers[index].Name, speakers[index].Surname),
+		))
 	}
 
 	data, err := json.Marshal(&presentationsPublicView)
@@ -430,56 +427,6 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Upvoted!")
 }
 
-func downvotePresentation(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	ctx := appengine.NewContext(r)
-	u := user.Current(ctx)
-	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprintf("/presentation/%v/downvote", vars["ID"]))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
-		return
-	}
-
-	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Please provide a valid ID.")
-		return
-	}
-
-	key := datastore.NewKey(ctx, datastorePresentationsKind, "", ID, nil)
-
-	presentation := Presentation{}
-
-	newCtx, _ := context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Get(newCtx, key, &presentation)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
-		return
-	}
-
-	if contains(presentation.Voters, u.Email) == false {
-		fmt.Fprint(w, "Sorry, you haven't upvoted this presentation yet.")
-		return
-	}
-
-	for i := 0; i < len(presentation.Voters); i++ {
-		if presentation.Voters[i] == u.Email {
-			presentation.Voters = append(presentation.Voters[0:i], presentation.Voters[i+1:len(presentation.Voters)]...)
-		}
-	}
-
-	newCtx, _ = context.WithTimeout(ctx, time.Second*2)
-	_, err = datastore.Put(newCtx, key, &presentation)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
-	}
-	fmt.Fprint(w, "Downvoted!")
-}
-
 func contains(slice []string, text string) bool {
 	for _, item := range slice {
 		if item == text {
@@ -487,4 +434,14 @@ func contains(slice []string, text string) bool {
 		}
 	}
 	return false
+}
+
+func (p *Presentation) GetPublicView(key int64, speaker string) PresentationPublicView {
+	return PresentationPublicView{
+		Key:         key,
+		Title:       p.Title,
+		Description: p.Description,
+		Speaker:     speaker,
+		Votes:       len(p.Voters),
+	}
 }
