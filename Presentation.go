@@ -140,13 +140,12 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", key.IntID(), err)
 	}
 	speakerPublicView := myPresentation.GetPublicView(key.IntID(), speakerRetrieved.GetSpeakerFullName())
-	data, err := json.Marshal(&speakerPublicView)
+	err = speakerPublicView.WriteTo(w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize presentation: %v", err)
+		log.Errorf(ctx, "Failed to encode presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	io.Copy(w, bytes.NewReader(data))
 }
 
 func addPresentation(w http.ResponseWriter, r *http.Request) {
@@ -329,13 +328,12 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 		))
 	}
 
-	data, err := json.Marshal(&presentationsPublicView)
+	err = WritePresentationsPublicView(presentationsPublicView, w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to serialize presentations slice: %v", err)
+		log.Errorf(ctx, "Failed to encode presentations slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	io.Copy(w, bytes.NewReader(data))
 }
 
 func upvotePresentation(w http.ResponseWriter, r *http.Request) {
@@ -449,4 +447,19 @@ func (p *Presentation) GetPublicView(key int64, speaker string) PresentationPubl
 		Speaker:     speaker,
 		Votes:       len(p.Voters),
 	}
+}
+
+func (p *Presentation) WriteTo(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(p)
+}
+
+func (p *PresentationPublicView) WriteTo(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(p)
+}
+
+func WritePresentationsPublicView(presentations []PresentationPublicView, w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(presentations)
 }
