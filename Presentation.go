@@ -142,7 +142,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 	speakerPublicView := myPresentation.GetPublicView(key.IntID(), speakerRetrieved.GetSpeakerFullName())
 	err = speakerPublicView.WriteTo(w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to encode presentation: %v", err)
+		log.Errorf(ctx, "Failed to write presentation: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -330,7 +330,7 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 
 	err = WritePresentationsPublicView(presentationsPublicView, w)
 	if err != nil {
-		log.Errorf(ctx, "Failed to encode presentations slice: %v", err)
+		log.Errorf(ctx, "Failed to write presentations slice: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
