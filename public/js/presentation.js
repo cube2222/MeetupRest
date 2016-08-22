@@ -1,24 +1,4 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-    <meta charset="utf-8" />
-    <title>React Tutorial</title>
-
-    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link href="bootstrap/css/bootstrap-theme.min.css" rel="stylesheet">
-
-    <script src="react/react.js"></script>
-    <script src="react/react-dom.js"></script>
-    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
-    <script src="https://npmcdn.com/jquery@3.1.0/dist/jquery.min.js"></script>
-    <script src="https://npmcdn.com/remarkable@1.6.2/dist/remarkable.min.js"></script>
-</head>
-
-<body>
-<div id="content"></div>
-<script type="text/babel">
-  var PresentationList = React.createClass({
+var PresentationList = React.createClass({
     updateState() {
       $.ajax({
         url: '/presentation/' + getParameterByName("key") + '/',
@@ -124,7 +104,3 @@ function getParameterByName(name, url) {
     if (!results[2]) return '';
     return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
-    </script>
-</body>
-
-</html>
