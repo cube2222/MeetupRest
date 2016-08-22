@@ -20,13 +20,7 @@
 <script type="text/babel">
 
   var PresentationList = React.createClass({
-
-
-    getInitialState: function() {
-      return {data: {}}
-    },
-
-    componentDidMount: function() {
+    updateState() {
       $.ajax({
         url: '/presentation/' + getParameterByName("key") + '/',
         dataType: 'json',
@@ -38,16 +32,37 @@
           console.error(this.props.url, status, err.toString());
         }.bind(this)
       });
+      $.ajax({
+        url: '/presentation/' + getParameterByName("key") + '/hasUpvoted',
+        dataType: 'text',
+        cache: false,
+        success: function(data) {
+          this.setState({hasUpvoted: data});
+        }.bind(this),
+        error: function(xhr, status, err) {
+          console.error(this.props.url, status, err.toString());
+        }.bind(this)
+      });
+    },
+
+    getInitialState: function() {
+      return {data: {}, hasUpvoted: "false"}
+    },
+
+    componentDidMount: function() {
+      this.updateState()
     },
 
     render: function() {
       return (
-        <div className="container theme-showcase">
-            <h1>{this.state.data.Title}</h1>
-            <h2>{this.state.data.Speaker}</h2>
-            <h4>Votes: {this.state.data.Votes} <a href={"/presentation/" + this.state.data.Key + "/upvote"} className="btn btn-success" role="button">Upvote</a></h4>
-            <div className="well">{this.state.data.Description}</div>
-        </div>
+          <div className="presentationList">
+            <div className="container theme-showcase">
+                <h1>{this.state.data.Title}</h1>
+                <h2>{this.state.data.Speaker}</h2>
+                <h4>Votes: {this.state.data.Votes} <a href={"/presentation/" + this.state.data.Key + "/upvote"} className={this.state.hasUpvoted == "false" ? "btn btn-success" : "btn btn-danger"} role="button">{this.state.hasUpvoted == "false" ? "Upvote" : "btn btn-danger"}</a></h4>
+                <div className="well">{this.state.data.Description}</div>
+            </div>
+          </div>
       );
     }
   });

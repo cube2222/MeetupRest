@@ -87,6 +87,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	m.HandleFunc("/form/{ID}/delete", removePresentationForm).Methods("GET")
 	m.HandleFunc("/{ID}/upvote", upvotePresentation).Methods("GET")
 	m.HandleFunc("/{ID}/downvote", downvotePresentation).Methods("GET")
+	m.HandleFunc("/{ID}/hasUpvoted", hasUpvoted).Methods("GET")
 
 	return nil
 }
@@ -396,12 +397,17 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
 		return
 	}
-	if contains(presentation.Voters, u.Email) {
-		fmt.Fprint(w, "Sorry, you already upvoted this presentation.")
+	if !contains(presentation.Voters, u.Email) {
+		fmt.Fprint(w, "Sorry, you haven't upvoted this presentation.")
 		return
 	}
 
-	presentation.Voters = append(presentation.Voters, u.Email)
+	for i := 0; i < len(presentation.Voters); i++ {
+		if presentation.Voters[i] == u.Email {
+			presentation.Voters = append(presentation.Voters[:i], presentation.Voters[i+1:]...)
+			break
+		}
+	}
 
 	newCtx, done = context.WithTimeout(ctx, time.Second*2)
 	_, err = datastore.Put(newCtx, key, &presentation)
@@ -410,7 +416,45 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
 	}
-	fmt.Fprint(w, "Upvoted!")
+	fmt.Fprint(w, "Undone upvote!")
+}
+
+func hasUpvoted(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	ctx := appengine.NewContext(r)
+	u := user.Current(ctx)
+	if u == nil {
+		fmt.Fprint(w, "false")
+		return
+	}
+
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Please provide a valid ID.")
+		return
+	}
+
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", ID, nil)
+
+	presentation := Presentation{}
+
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Get(newCtx, key, &presentation)
+	done()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
+		return
+	}
+	if contains(presentation.Voters, u.Email) {
+		fmt.Fprint(w, "true")
+		return
+	} else {
+		fmt.Fprint(w, "false")
+		return
+	}
 }
 
 func contains(slice []string, text string) bool {
