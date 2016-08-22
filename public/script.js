@@ -1,44 +1,48 @@
-class Profile extends React.Component {
-    render() {
-        return <h2> Hello world !!</h2>;
-    }
-}
-//ReactDOM.render(<Profile />, document.getElementById('app'));
+var DeleteForm = React.createClass({
+    getInitialState: function() {
+      return {data: []}
+    },
 
-class DeletePresentation extends React.Component {
-    render() {
-        // return (
-        //     <div>
-        //         <h1> Deleting Presentation Form </h1>
-        //         <label>By Title:</label>
-        //         <select name="PresentationId">
-                    
-        //             <option value="123">   </option>
-                    
-        //         </select>
-        //         <input type="submit" value="Remove"/>
-        //     </div>
-        // );
+    fetchPresentation() {
+        $.ajax({
+            url: '/presentation/list',
+            dataType: 'json',
+            cache: false,
+            success: function(data) {
+                this.setState({data: data});
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+      });
+    },
+
+    componentDidMount: function() {
+      this.fetchPresentation()
+    },
+
+    render: function() {
+        var FormatItem = function(item) {
+            return <option value={item.Key}>{item.Title} - {item.Speaker}</option>;
+        };
+
         return (
-            React.createElement('form', {className: 'ContactForm'},
-                React.createElement('input', {
-                    type: 'text',
-                    placeholder: 'Name (required)',
-                    value: this.props.value.name,
-                }),
-                React.createElement('input', {
-                    type: 'email',
-                    placeholder: 'Email',
-                    value: this.props.value.email,
-                }),
-                React.createElement('textarea', {
-                    placeholder: 'Description',
-                    value: this.props.value.description,
-                }),
-                React.createElement('button', {type: 'submit'}, "Add Contact")
-            )
-            );        
-    }
-}
+        <form className="commentForm " action='/presentation/delete' value="Post">
+            <div className="panel panel-default col-md-6 col-md-offset-3">
+                <div className="panel-heading">
+                    <h3 className="panel-title">Delete Presentation</h3>
+                </div>
+                <div className="panel-body">
+                    <select name="PresentationId" onChange={this.handleOptionChange}>{this.state.data.map(FormatItem)}</select>
+                    <div className="text-right">
+                        <button type="submit" className="btn btn-default text-right">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+        )
+        
+    },
+});
 
-ReactDOM.render(<DeletePresentation />, document.getElementById('delete'));
+ReactDOM.render(<DeleteForm/>, document.getElementById('app'));
