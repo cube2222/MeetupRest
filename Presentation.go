@@ -231,6 +231,10 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 
 func removePresentationForm(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+<<<<<<< HEAD
+=======
+	//vars := mux.Vars(r)
+>>>>>>> 87677e26affb1b3006dc8c9e3935d4b5463b2678
 
 	presentations := make([]Presentation, 0, 10)
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)

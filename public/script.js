@@ -46,3 +46,8 @@ var DeleteForm = React.createClass({
 });
 
 ReactDOM.render(<DeleteForm/>, document.getElementById('app'));
+class Profile extends React.Component {
+    render() {
+        return <h2> Hello world !!</h2>;
+    }
+}
