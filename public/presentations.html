@@ -1,0 +1,80 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>React Tutorial</title>
+    <script src="react/react.js"></script>
+    <script src="react/react-dom.js"></script>
+    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+    <script src="https://npmcdn.com/jquery@3.1.0/dist/jquery.min.js"></script>
+    <script src="https://npmcdn.com/remarkable@1.6.2/dist/remarkable.min.js"></script>
+</head>
+
+<body>
+    <div id="content"></div>
+    <script type="text/babel">
+
+    // tutorial8.js
+
+  var PresentationList = React.createClass({
+
+
+    getInitialState: function() {
+      return {data: []}
+    },
+
+    componentDidMount: function() {
+      $.ajax({
+        url: '/presentation/list',
+        dataType: 'json',
+        cache: false,
+        success: function(data) {
+          this.setState({data: data});
+        }.bind(this),
+        error: function(xhr, status, err) {
+          console.error(this.props.url, status, err.toString());
+        }.bind(this)
+      });
+    },
+
+    render: function() {
+      var presentations = this.state.data.map(function(presentation) {
+          return (
+            <tr>
+              <td>{presentation.Key}</td>
+              <td>{presentation.Title}</td>
+              <td>{presentation.Speaker}</td>
+              <td>{presentation.Votes}</td>
+            </tr>
+          );
+      });
+      return (
+        <div className="presentationList">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Title</th>
+                        <th>Speaker</th>
+                        <th>Votes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {presentations}
+                </tbody>
+            </table>
+        </div>
+      );
+    }
+  });
+
+ReactDOM.render(
+  <PresentationList/>,
+  document.getElementById('content')
+);
+    </script>
+</body>
+
+</html>
