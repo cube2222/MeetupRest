@@ -45,7 +45,7 @@
         <div className="container theme-showcase">
             <h1>{this.state.data.Title}</h1>
             <h2>{this.state.data.Speaker}</h2>
-            <h4>Votes: {this.state.data.Votes}</h4>
+            <h4>Votes: {this.state.data.Votes} <a href={"/presentation/" + this.state.data.Key + "/upvote"} className="btn btn-success" role="button">Upvote</a></h4>
             <div className="well">{this.state.data.Description}</div>
         </div>
       );

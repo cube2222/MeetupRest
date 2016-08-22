@@ -47,7 +47,7 @@
               <td>{presentation.Title}</td>
               <td>{presentation.Speaker}</td>
               <td>{presentation.Votes}</td>
-              <td><a href={"/presentation/" + presentation.Key + "/"} class="btn btn-info" role="button">Open</a></td>
+              <td><a href={"/public/presentation.html?key=" + presentation.Key} className="btn btn-info" role="button">Open</a></td>
             </tr>
           );
       });
