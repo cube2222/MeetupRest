@@ -16,19 +16,19 @@
 </head>
 
 <body>
-    <div id="content"></div>
-    <script type="text/babel">
+<div id="content"></div>
+<script type="text/babel">
 
   var PresentationList = React.createClass({
 
 
     getInitialState: function() {
-      return {data: []}
+      return {data: {}}
     },
 
     componentDidMount: function() {
       $.ajax({
-        url: '/presentation/list',
+        url: '/presentation/' + getParameterByName("key") + '/',
         dataType: 'json',
         cache: false,
         success: function(data) {
@@ -41,30 +41,12 @@
     },
 
     render: function() {
-      var presentations = this.state.data.map(function(presentation) {
-          return (
-            <tr key={presentation.Key}>
-              <td>{presentation.Title}</td>
-              <td>{presentation.Speaker}</td>
-              <td>{presentation.Votes}</td>
-              <td><a href={"/presentation/" + presentation.Key + "/"} class="btn btn-info" role="button">Open</a></td>
-            </tr>
-          );
-      });
       return (
-        <div className="presentationList">
-            <table className="table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Speaker</th>
-                        <th>Votes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {presentations}
-                </tbody>
-            </table>
+        <div className="container theme-showcase">
+            <h1>{this.state.data.Title}</h1>
+            <h2>{this.state.data.Speaker}</h2>
+            <h4>Votes: {this.state.data.Votes}</h4>
+            <div className="well">{this.state.data.Description}</div>
         </div>
       );
     }
@@ -74,6 +56,16 @@ ReactDOM.render(
   <PresentationList/>,
   document.getElementById('content')
 );
+
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
     </script>
 </body>
 
