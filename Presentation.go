@@ -84,7 +84,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	m.HandleFunc("/", removePresentation).Methods("DELETE")
 	m.HandleFunc("/list", listPresentations).Methods("GET")
 	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
-	m.HandleFunc("/form/delete", removePresentationForm).Methods("GET")
+	m.HandleFunc("/form/{ID}/delete", removePresentationForm).Methods("GET")
 	m.HandleFunc("/{ID}/upvote", upvotePresentation).Methods("GET")
 	m.HandleFunc("/{ID}/downvote", downvotePresentation).Methods("GET")
 
@@ -231,6 +231,7 @@ func addPresentationForm(w http.ResponseWriter, r *http.Request) {
 
 func removePresentationForm(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	vars := mux.Vars(r)
 
 	presentations := make([]Presentation, 0, 10)
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)
