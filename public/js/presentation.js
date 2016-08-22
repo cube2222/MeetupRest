@@ -63,17 +63,28 @@ var PresentationList = React.createClass({
       });
     },
 
-    login() {
-        window.open("/_ah/login?continue=" + window.location.href,"_self")
+    login() {     
+      window.open(this.state.loginAddress)
     },
 
     getInitialState: function() {
-      return {data: {}, hasUpvoted: "false", isLoggedIn: "false"}
+      return {data: {}, hasUpvoted: "false", isLoggedIn: "false", loginAddress: ""}
     },
 
     componentDidMount: function() {
       this.updateState()
-      setInterval(this.updateState, 2000);
+      setInterval(this.updateState, 4000);
+      $.ajax({
+        url: '/getLoginAddress?url=' + window.location.href,
+        dataType: 'text',
+        cache: false,
+        success: function(address) {
+          this.setState({loginAddress: address});
+        }.bind(this),
+        error: function(xhr, status, err) {
+          console.error(this.props.url, status, err.toString());
+        }.bind(this)
+      });
     },
 
     render: function() {

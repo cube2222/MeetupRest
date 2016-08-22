@@ -1,5 +1,4 @@
-
-  var PresentationList = React.createClass({
+var PresentationList = React.createClass({
 
 
     getInitialState: function() {

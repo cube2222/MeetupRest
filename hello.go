@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/user"
+	"net/url"
 )
 
 func init() {
@@ -25,6 +26,7 @@ func init() {
 	m.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("public/"))))
 
 	m.HandleFunc("/isLoggedIn", isLoggedIn)
+	m.HandleFunc("/getLoginAddress", getLoginAddress)
 
 	if err != nil {
 		panic(err)
@@ -41,4 +43,18 @@ func isLoggedIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprint(w, "true")
+}
+
+func getLoginAddress(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	vars, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	url, _ := user.LoginURL(ctx, fmt.Sprintf("%v", vars["url"][0]))
+	fmt.Fprint(w, url)
+	return
 }
