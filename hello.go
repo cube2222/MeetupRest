@@ -19,6 +19,8 @@ func init() {
 	s = m.PathPrefix("/meetup").Subrouter()
 	err = RegisterMeetupRoutes(s)
 
+	m.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("public/"))))
+
 	if err != nil {
 		panic(err)
 	}
