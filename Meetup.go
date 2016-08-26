@@ -4,17 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"net/http"
 	"time"
+
+	"golang.org/x/net/context"
+
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"strconv"
 )
 
 const datastoreMeetupsKind = "Meetups"
@@ -183,14 +185,19 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	err = r.ParseForm()
 	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Please provide a valid ID.")
 		return
 	}
 
 	muf := &MeetupUpdateForm{}
-	decoder := schema.NewDecoder()
-	decoder.Decode(muf, r.PostForm)
+	err = json.NewDecoder(r.Body).Decode(&muf)
+	log.Debugf(ctx, "Body: %s", r.Body)
+	if err != nil {
+		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	meetup, err := h.Storage.GetMeetup(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
@@ -198,8 +205,8 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		log.Errorf(ctx, "Can't get meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf(ctx, "Couldn't get meetup with key: %v, error: %v", ID, err)
 		return
 	}
 
