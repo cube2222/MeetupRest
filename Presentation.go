@@ -30,6 +30,11 @@ type Presentation struct {
 	Voters      []string
 }
 
+type PresentationForm struct {
+	Title       string
+	Description string
+}
+
 type PresentationPublicView struct {
 	Key         int64
 	Title       string
@@ -82,6 +87,7 @@ func RegisterPresentationRoutes(m *mux.Router) error {
 	m.HandleFunc("/{ID}/", getPresentation).Methods("GET")
 	m.HandleFunc("/", addPresentation).Methods("POST")
 	m.HandleFunc("/", removePresentation).Methods("DELETE")
+	m.HandleFunc("/{ID}/update", updatePresentation).Methods("POST")
 	m.HandleFunc("/list", listPresentations).Methods("GET")
 	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
 	m.HandleFunc("/form/{ID}/delete", removePresentationForm).Methods("GET")
@@ -165,6 +171,65 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", id.IntID())
+}
+
+func updatePresentation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	ctx := appengine.NewContext(r)
+
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Please provide a valid ID.")
+		return
+	}
+
+	puf := PresentationForm{}
+	err = json.NewDecoder(r.Body).Decode(&puf)
+	log.Debugf(ctx, "Body: %s", r.Body)
+	if err != nil {
+		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	tmpPresentation := Presentation{}
+	key := datastore.NewKey(ctx, datastorePresentationsKind, "", ID, nil)
+
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Get(newCtx, key, &tmpPresentation)
+	done()
+
+	if err == datastore.ErrNoSuchEntity {
+		fmt.Fprint(w, "No presentation with ID: %v", ID)
+		return
+	}
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
+		return
+	}
+
+	if puf.Title != "" {
+		tmpPresentation.Title = puf.Title
+	}
+
+	if puf.Description != "" {
+		tmpPresentation.Description = puf.Description
+	}
+
+	newCtx, done = context.WithTimeout(ctx, time.Second*2)
+	_, err = datastore.Put(newCtx, key, &tmpPresentation)
+	done()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprint(w, "Presentation Updated!")
 }
 
 func removePresentation(w http.ResponseWriter, r *http.Request) {
