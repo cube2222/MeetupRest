@@ -38,14 +38,11 @@ type SpeakerPublicView struct {
 }
 
 type SpeakerUpdateForm struct {
-	CurrentName    string
-	CurrentSurname string
-	CurrentEmail   string
-	NewName        string
-	NewSurname     string
-	NewAbout       string
-	NewEmail       string
-	NewCompany     string
+	NewName    string
+	NewSurname string
+	NewAbout   string
+	NewEmail   string
+	NewCompany string
 }
 
 // Get the handler which contains all the speaker handling routes and the corresponding handlers.
@@ -147,7 +144,14 @@ func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
 func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	err := r.ParseForm()
+	vars := mux.Vars(r)
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
+	}
+
+	err = r.ParseForm()
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -158,34 +162,16 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	decoder := schema.NewDecoder()
 	decoder.Decode(suf, r.PostForm)
 
-	if suf.CurrentEmail == "" && (suf.CurrentName == "" || suf.CurrentSurname == "") {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Current speaker email or name with surname is mandatory.")
-		return
-	}
-	q := datastore.NewQuery(datastoreSpeakersKind).Limit(1)
-
-	if suf.CurrentEmail != "" {
-		q = q.Filter("Email=", suf.CurrentEmail)
-	}
-
-	if suf.CurrentName != "" {
-		q = q.Filter("Name=", suf.CurrentName)
-	}
-
-	if suf.CurrentSurname != "" {
-		q = q.Filter("Surname=", suf.CurrentSurname)
-	}
-
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	t := q.Run(newCtx)
-	done()
+	k := datastore.NewKey(ctx, datastoreSpeakersKind, "", ID, nil)
 
 	mySpeaker := &Speaker{}
-	key, err := t.Next(mySpeaker)
 
-	if err == datastore.Done {
-		fmt.Fprint(w, "No such speaker found.")
+	newCtx, done := context.WithTimeout(ctx, time.Second*2)
+	err = datastore.Get(newCtx, k, &mySpeaker)
+	done()
+
+	if err == datastore.ErrNoSuchEntity {
+		fmt.Fprint(w, "No speaker with ID: %v", ID)
 		return
 	}
 	// Some other error
@@ -216,9 +202,8 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newCtx, done = context.WithTimeout(ctx, time.Second*2)
-	_, err = datastore.Put(newCtx, key, mySpeaker)
+	_, err = datastore.Put(newCtx, k, mySpeaker)
 	done()
-	log.Infof(ctx, key.String())
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
