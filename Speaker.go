@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -15,12 +14,14 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/user"
 	"strconv"
 )
 
 const datastoreSpeakersKind = "Speakers"
 
 type Speaker struct {
+	Owner   string
 	Name    string
 	Surname string
 	About   string
@@ -54,7 +55,7 @@ func RegisterSpeakerRoutes(m *mux.Router) error {
 	m.HandleFunc("/", addSpeaker).Methods("POST")
 	m.HandleFunc("/list", listSpeakers).Methods("GET")
 	m.HandleFunc("/update", updateSpeaker).Methods("POST")
-	m.HandleFunc("/delete", deleteSpeaker).Methods("DELETE")
+	m.HandleFunc("/{ID}/delete", deleteSpeaker).Methods("GET")
 	m.HandleFunc("/form/add", addSpeakerForm).Methods("GET")
 	m.HandleFunc("/form/update", updateSpeakerForm).Methods("GET")
 
@@ -97,6 +98,13 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 func addSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/speaker/form/add"))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
 	err := r.ParseForm()
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: %v", err)
@@ -114,6 +122,8 @@ func addSpeaker(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Name, surname and email are mandatory.")
 		return
 	}
+
+	s.Owner = u.Email
 
 	key := datastore.NewKey(ctx, datastoreSpeakersKind, "", 0, nil)
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)
@@ -151,6 +161,13 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/speaker/form/update"))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
 	err = r.ParseForm()
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: %v", err)
@@ -180,7 +197,13 @@ func updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	// Check if it's the owner
+	if mySpeaker.Owner != u.Email && !u.Admin {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "You're not the owner nor the admin.")
+		return
+	}
+	//TODO: Update speaker with function.
 	if suf.NewName != "" {
 		mySpeaker.Name = suf.NewName
 	}
@@ -233,45 +256,43 @@ func updateSpeakerForm(w http.ResponseWriter, r *http.Request) {
 func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
+	vars := mux.Vars(r)
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
 	if err != nil {
-		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
+	}
+
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/speaker/%v/delete", ID))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
 		return
 	}
 
-	q := datastore.NewQuery(datastoreSpeakersKind).Limit(1)
+	mySpeaker := Speaker{}
 
-	name, okName := params["name"]
-	surname, okSurname := params["surname"]
-	email, okEmail := params["email"]
-
-	// Check if email or name with surname are provided.
-	if !okEmail && (!okName || !okSurname) {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Speaker email or name with surname must be provided.")
-		return
-	}
-
-	if okName {
-		q = q.Filter("Name=", name[0]).Filter("Surname=", surname[0])
-	}
-	if okEmail {
-		q = q.Filter("Email=", email[0])
-	}
-
+	k := datastore.NewKey(ctx, datastoreSpeakersKind, "", ID, nil)
 	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	t := q.Run(newCtx)
+	err = datastore.Get(newCtx, k, &mySpeaker)
 	done()
-	mySpeaker := &Speaker{}
-	key, err := t.Next(mySpeaker)
-	if err == datastore.Done {
-		fmt.Fprint(w, "No speaker found.")
+	if err == datastore.ErrNoSuchEntity {
+		fmt.Fprint(w, "Speaker not found.")
+		return
+	}
+	if err != nil {
+		log.Errorf(ctx, "Can't get speaker: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if mySpeaker.Owner != u.Email && !u.Admin {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "You're not the owner nor the admin.")
 		return
 	}
 
 	newCtx, done = context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Delete(newCtx, key)
+	err = datastore.Delete(newCtx, k)
 	done()
 	if err != nil {
 		log.Errorf(ctx, "Can't delete speaker: %v", err)
