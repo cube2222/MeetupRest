@@ -1,4 +1,23 @@
 var UpdateMeetup = React.createClass({
+    getInitialState: function() {
+      return {date : "2016-01-15T01:06", title: '', description: '', voteTimeEnd: "2016-01-15T01:06"}
+    },
+
+    onDateChange(e) {
+        let state = this.state;
+        state['date'] = e.target.value;
+        // Or (you can use below method to access component in another method)
+        state['date'] = this.dateRef.value;
+        this.setState(state);
+    },
+
+     onVoteTimeEndChange(e) {
+        let state = this.state;
+        state['date'] = e.target.value;
+        // Or (you can use below method to access component in another method)
+        state['date'] = this.dateRef.value;
+        this.setState(state);
+    },
 
     render: function() {
         return (
@@ -19,12 +38,56 @@ var UpdateMeetup = React.createClass({
                             </div>
                         </div>
                         <div className='form-group'>
+                            <label htmlFor='date' className='col-sm-2 control-label'>Event Date</label>
+                            <div className='col-sm-10'>
+                                <div className='col-sm-6'>
+                                    <div className='form-group'>
+                                        <div className='input-group date'>
+                                            <input className='form-control' type='datetime-local' ref={(date) => {this.dateRef = date;}} value={this.state.date} onChange={this.onDateChange.bind(this)}/>
+                                            <span className='input-group-addon'>
+                                                <span className='glyphicon glyphicon-calendar'></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>    
+                        <div className='form-group'>
+                            <label htmlFor='date' className='col-sm-2 control-label'>Vote Time End</label>
+                            <div className='col-sm-10'>
+                                <div className='col-sm-6'>
+                                    <div className='form-group'>
+                                        <div className='input-group date'>
+                                            <input className='form-control' type='datetime-local' value={this.state.voteTimeEnd} onChange={this.onVoteTimeEndChange.bind(this)}/>
+                                            <span className='input-group-addon'>
+                                                <span className='glyphicon glyphicon-calendar'></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div> 
+                        <div className='form-group'>
                             <label htmlFor='description' className='col-sm-2 control-label'>Description</label>
                             <div className='col-sm-10'>
                                 <textarea 
                                     className='form-control' 
                                     rows='4' 
                                     name='description'></textarea>
+                            </div>
+                        </div>
+                        <div className='form-group'>
+                            <label htmlFor='date' className='col-sm-2 control-label'>Presentations</label>
+                                <div className='col-sm-10'>
+                                <table className="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Speaker</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                </table>
                             </div>
                         </div>
                         <div className='form-group'>
