@@ -1,6 +1,34 @@
 var UpdateMeetup = React.createClass({
     getInitialState: function() {
-      return {date : "2016-01-15T01:06", title: '', description: '', voteTimeEnd: "2016-01-15T01:06"}
+      return {
+            date : '',
+            title: '',
+            description: '',
+            presentations: [],
+            voteTimeEnd: ''
+        }
+    },
+
+    getMeetup() {
+        $.ajax({
+            url: '/meetup/' + getParameterByName("key") + '/',
+            dataType: 'json',
+            cache: false,
+            success: function(data) {
+            this.setState({title: data.Title})
+            this.setState({description: data.Description})
+            this.setState({voteTimeEnd: data.VoteTimeEnd.slice(0,-1)})
+            this.setState({presentations: data.Presentations})
+            this.setState({date: data.Date.slice(0,-1)});
+        }.bind(this),
+            error: function(xhr, status, err) {
+            console.error(this.props.url, status, err.toString());
+        }.bind(this)
+      });
+    },
+
+    componentDidMount: function() {
+        this.getMeetup()
     },
 
     onDateChange(e) {
@@ -13,10 +41,18 @@ var UpdateMeetup = React.createClass({
 
      onVoteTimeEndChange(e) {
         let state = this.state;
-        state['date'] = e.target.value;
+        state['voteTimeEnd'] = e.target.value;
         // Or (you can use below method to access component in another method)
-        state['date'] = this.dateRef.value;
+        state['voteTimeEnd'] = this.dateRef.value;
         this.setState(state);
+    },
+
+    handleTitleChange: function(e) {
+        this.setState({title: e.target.value});
+    },
+
+    handleDescriptionChange: function(e) {
+        this.setState({description: e.target.value});
     },
 
     render: function() {
@@ -34,7 +70,9 @@ var UpdateMeetup = React.createClass({
                                     type='text' 
                                     className='form-control' 
                                     id='title' name='title' 
-                                    placeholder='Title' />
+                                    placeholder='Title' 
+                                    value={this.state.title}
+                                    onChange={this.handleTitleChange} />
                             </div>
                         </div>
                         <div className='form-group'>
@@ -43,7 +81,7 @@ var UpdateMeetup = React.createClass({
                                 <div className='col-sm-6'>
                                     <div className='form-group'>
                                         <div className='input-group date'>
-                                            <input className='form-control' type='datetime-local' ref={(date) => {this.dateRef = date;}} value={this.state.date} onChange={this.onDateChange.bind(this)}/>
+                                            <input className='form-control' type='datetime-local' ref={(date) => {this.dateRef = date;}} value={this.state.date} onChange={this.onDateChange}/>
                                             <span className='input-group-addon'>
                                                 <span className='glyphicon glyphicon-calendar'></span>
                                             </span>
@@ -58,7 +96,7 @@ var UpdateMeetup = React.createClass({
                                 <div className='col-sm-6'>
                                     <div className='form-group'>
                                         <div className='input-group date'>
-                                            <input className='form-control' type='datetime-local' value={this.state.voteTimeEnd} onChange={this.onVoteTimeEndChange.bind(this)}/>
+                                            <input className='form-control' type='datetime-local' value={this.state.voteTimeEnd} onChange={this.onVoteTimeEndChange}/>
                                             <span className='input-group-addon'>
                                                 <span className='glyphicon glyphicon-calendar'></span>
                                             </span>
@@ -72,8 +110,10 @@ var UpdateMeetup = React.createClass({
                             <div className='col-sm-10'>
                                 <textarea 
                                     className='form-control' 
-                                    rows='4' 
-                                    name='description'></textarea>
+                                    rows='4'
+                                    name='description'
+                                    value={this.state.description}
+                                    onChange={this.handleDescriptionChange}></textarea>
                             </div>
                         </div>
                         <div className='form-group'>
