@@ -1,10 +1,10 @@
 package MeetupRest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 	"io"
 	"net/http"
 	"time"
