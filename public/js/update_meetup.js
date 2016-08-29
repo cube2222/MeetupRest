@@ -1,3 +1,7 @@
+import DatePicker from '../dependencies/node_modules/react-toolbox/lib/date_picker';
+
+const datetime = new Date(2015, 10, 16);
+
 var UpdateMeetup = React.createClass({
     getInitialState: function() {
       return {
@@ -5,8 +9,13 @@ var UpdateMeetup = React.createClass({
             title: '',
             description: '',
             presentations: [],
-            voteTimeEnd: ''
+            voteTimeEnd: '',
+            date2: datetime
         }
+    },
+
+    handleChange(item, value) {
+
     },
 
     getMeetup() {
@@ -130,6 +139,7 @@ var UpdateMeetup = React.createClass({
                                 </table>
                             </div>
                         </div>
+                         <DatePicker label='Birthdate' sundayFirstDayOfWeek onChange={this.handleChange.bind(this, 'date1')} value={this.state.date1} />
                         <div className='form-group'>
                             <div className='col-sm-10 col-sm-offset-2'>
                                 <input id='submit' name='submit' type='submit' value='Save' className='btn btn-primary' />
