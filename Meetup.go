@@ -45,22 +45,35 @@ type MeetupUpdateForm struct {
 	NewVoteTimeEnd time.Time
 }
 
+type MeetupStore interface {
+	GetMeetup(ctx context.Context, id int64) (Meetup, error)
+	GetAllMeetups(ctx context.Context) ([]int64, []Meetup, error)
+	PutMeetup(ctx context.Context, id int64, meetup *Meetup) error
+	AddMeetup(ctx context.Context, meetup *Meetup) (int64, error)
+	DeleteMeetup(ctx context.Context, id int64) error
+}
+
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router) error {
+func RegisterMeetupRoutes(m *mux.Router, Storage *SpeakerStore) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
-	m.HandleFunc("/{ID}/", getMeetup).Methods("GET")
-	m.HandleFunc("/", addMeetup).Methods("POST")
-	m.HandleFunc("/delete", deleteMeetup).Methods("DELETE")
-	m.HandleFunc("/update", updateMeetup).Methods("POST")
-	m.HandleFunc("/list", listMeetups).Methods("GET")
+	h := meetupHandler{Storage: Storage}
+	m.HandleFunc("/{ID}/", h.getMeetup).Methods("GET")
+	m.HandleFunc("/", h.addMeetup).Methods("POST")
+	m.HandleFunc("/delete", h.deleteMeetup).Methods("DELETE")
+	m.HandleFunc("/update", h.updateMeetup).Methods("POST")
+	m.HandleFunc("/list", h.listMeetups).Methods("GET")
 	m.HandleFunc("/form/add", addMeetupForm).Methods("GET")
 
 	return nil
 }
 
-func getMeetup(w http.ResponseWriter, r *http.Request) {
+type meetupHandler struct {
+	Storage *MeetupStore
+}
+
+func (h *meetupHandler) getMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	vars := mux.Vars(r)
@@ -93,7 +106,7 @@ func getMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	err := r.ParseForm()
@@ -136,7 +149,7 @@ func addMeetupForm(w http.ResponseWriter, r *http.Request) {
 		"</form>")
 }
 
-func deleteMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
@@ -186,7 +199,7 @@ func deleteMeetup(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Meetup deleted successfully.")
 }
 
-func updateMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	err := r.ParseForm()
@@ -255,7 +268,7 @@ func updateMeetup(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Meetup updated.")
 }
 
-func listMeetups(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) listMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	meetups := make([]Meetup, 0, 10)
 

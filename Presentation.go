@@ -43,6 +43,14 @@ type PresentationPublicView struct {
 	Votes       int
 }
 
+type PresentationStore interface {
+	GetPresentation(ctx context.Context, id int64) (Presentation, error)
+	GetAllPresentations(ctx context.Context) ([]int64, []Presentation, error)
+	PutPresentation(ctx context.Context, id int64, presentation *Presentation) error
+	AddPresentation(ctx context.Context, presentation *Presentation) (int64, error)
+	DeletePresentation(ctx context.Context, id int64) error
+}
+
 type Option struct {
 	Value, Text string
 }
@@ -80,25 +88,30 @@ const HTMLDeleteForm = `
 `
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
-func RegisterPresentationRoutes(m *mux.Router) error {
+func RegisterPresentationRoutes(m *mux.Router, Storage *SpeakerStore) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering presentation routes")
 	}
-	m.HandleFunc("/{ID}/", getPresentation).Methods("GET")
-	m.HandleFunc("/", addPresentation).Methods("POST")
-	m.HandleFunc("/", removePresentation).Methods("DELETE")
-	m.HandleFunc("/{ID}/update", updatePresentation).Methods("POST")
-	m.HandleFunc("/list", listPresentations).Methods("GET")
+	h := presentationHandler{Storage: Storage}
+	m.HandleFunc("/{ID}/", h.getPresentation).Methods("GET")
+	m.HandleFunc("/", h.addPresentation).Methods("POST")
+	m.HandleFunc("/", h.removePresentation).Methods("DELETE")
+	m.HandleFunc("/{ID}/update", h.updatePresentation).Methods("POST")
+	m.HandleFunc("/list", h.listPresentations).Methods("GET")
 	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
 	m.HandleFunc("/form/{ID}/delete", removePresentationForm).Methods("GET")
-	m.HandleFunc("/{ID}/upvote", upvotePresentation).Methods("GET")
-	m.HandleFunc("/{ID}/downvote", downvotePresentation).Methods("GET")
-	m.HandleFunc("/{ID}/hasUpvoted", hasUpvoted).Methods("GET")
+	m.HandleFunc("/{ID}/upvote", h.upvotePresentation).Methods("GET")
+	m.HandleFunc("/{ID}/downvote", h.downvotePresentation).Methods("GET")
+	m.HandleFunc("/{ID}/hasUpvoted", h.hasUpvoted).Methods("GET")
 
 	return nil
 }
 
-func getPresentation(w http.ResponseWriter, r *http.Request) {
+type presentationHandler struct {
+	Storage *PresentationStore
+}
+
+func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	vars := mux.Vars(r)
@@ -138,7 +151,7 @@ func getPresentation(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addPresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	err := r.ParseForm()
@@ -173,7 +186,7 @@ func addPresentation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%v", id.IntID())
 }
 
-func updatePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	ctx := appengine.NewContext(r)
 
@@ -232,7 +245,7 @@ func updatePresentation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Presentation Updated!")
 }
 
-func removePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) removePresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
@@ -326,7 +339,7 @@ func removePresentationForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func listPresentations(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -385,7 +398,7 @@ func listPresentations(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func upvotePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) upvotePresentation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	ctx := appengine.NewContext(r)
@@ -432,7 +445,7 @@ func upvotePresentation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Upvoted!")
 }
 
-func downvotePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	ctx := appengine.NewContext(r)
@@ -484,7 +497,7 @@ func downvotePresentation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Undone upvote!")
 }
 
-func hasUpvoted(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) hasUpvoted(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	ctx := appengine.NewContext(r)

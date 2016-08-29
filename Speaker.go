@@ -46,23 +46,36 @@ type SpeakerUpdateForm struct {
 	NewCompany string
 }
 
+type SpeakerStore interface {
+	GetSpeaker(ctx context.Context, id int64) (Speaker, error)
+	GetAllSpeakers(ctx context.Context) ([]int64, []Speaker, error)
+	PutSpeaker(ctx context.Context, id int64, speaker *Speaker) error
+	AddSpeaker(ctx context.Context, speaker *Speaker) (int64, error)
+	DeleteSpeaker(ctx context.Context, id int64) error
+}
+
 // Get the handler which contains all the speaker handling routes and the corresponding handlers.
-func RegisterSpeakerRoutes(m *mux.Router) error {
+func RegisterSpeakerRoutes(m *mux.Router, Storage *SpeakerStore) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering speaker routes")
 	}
-	m.HandleFunc("/{ID}/", getSpeaker).Methods("GET")
-	m.HandleFunc("/", addSpeaker).Methods("POST")
-	m.HandleFunc("/list", listSpeakers).Methods("GET")
-	m.HandleFunc("/update", updateSpeaker).Methods("POST")
-	m.HandleFunc("/{ID}/delete", deleteSpeaker).Methods("GET")
+	h := speakerHandler{Storage: Storage}
+	m.HandleFunc("/{ID}/", h.getSpeaker).Methods("GET")
+	m.HandleFunc("/", h.addSpeaker).Methods("POST")
+	m.HandleFunc("/list", h.listSpeakers).Methods("GET")
+	m.HandleFunc("/update", h.updateSpeaker).Methods("POST")
+	m.HandleFunc("/{ID}/delete", h.deleteSpeaker).Methods("GET")
 	m.HandleFunc("/form/add", addSpeakerForm).Methods("GET")
 	m.HandleFunc("/form/update", updateSpeakerForm).Methods("GET")
 
 	return nil
 }
 
-func getSpeaker(w http.ResponseWriter, r *http.Request) {
+type speakerHandler struct {
+	Storage *SpeakerStore
+}
+
+func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	vars := mux.Vars(r)
@@ -95,7 +108,7 @@ func getSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) addSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	u := user.Current(ctx)
@@ -151,7 +164,7 @@ func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
 		"</form>")
 }
 
-func updateSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	vars := mux.Vars(r)
@@ -253,7 +266,7 @@ func updateSpeakerForm(w http.ResponseWriter, r *http.Request) {
 		"</form>")
 }
 
-func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	vars := mux.Vars(r)
@@ -303,7 +316,7 @@ func deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Speaker deleted successfully.")
 }
 
-func listSpeakers(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) listSpeakers(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	speakers := make([]Speaker, 0, 10)
 

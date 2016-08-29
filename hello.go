@@ -13,15 +13,16 @@ import (
 func init() {
 
 	m := mux.NewRouter()
+	Storage := GoogleDatastoreStore{}
 
 	s := m.PathPrefix("/speaker").Subrouter()
-	err := RegisterSpeakerRoutes(s)
+	err := RegisterSpeakerRoutes(s, &Storage)
 
 	s = m.PathPrefix("/presentation").Subrouter()
-	err = RegisterPresentationRoutes(s)
+	err = RegisterPresentationRoutes(s, &Storage)
 
 	s = m.PathPrefix("/meetup").Subrouter()
-	err = RegisterMeetupRoutes(s)
+	err = RegisterMeetupRoutes(s, &Storage)
 
 	m.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("public/"))))
 
