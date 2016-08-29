@@ -1,0 +1,10 @@
+{
+  "name": "dependencies",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Jonatan Borkowski",
+  "license": "ISC",
+  "dependencies": {
+    "react-toolbox": "^1.1.2"
+  }
+}
