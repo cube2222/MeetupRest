@@ -7,7 +7,6 @@ import (
 	"golang.org/x/net/context"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -55,7 +54,7 @@ type SpeakerStore interface {
 }
 
 // Get the handler which contains all the speaker handling routes and the corresponding handlers.
-func RegisterSpeakerRoutes(m *mux.Router, Storage *SpeakerStore) error {
+func RegisterSpeakerRoutes(m *mux.Router, Storage SpeakerStore) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering speaker routes")
 	}
@@ -72,11 +71,13 @@ func RegisterSpeakerRoutes(m *mux.Router, Storage *SpeakerStore) error {
 }
 
 type speakerHandler struct {
-	Storage *SpeakerStore
+	Storage SpeakerStore
 }
 
 func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
+	defer done()
 
 	vars := mux.Vars(r)
 	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
@@ -85,9 +86,7 @@ func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	speaker, err := GetSpeakerByKey(newCtx, ID)
-	done()
+	speaker, err := h.Storage.GetSpeaker(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Couldn't find speaker with id: %v", ID)
@@ -110,6 +109,8 @@ func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
 
 func (h *speakerHandler) addSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
+	defer done()
 
 	u := user.Current(ctx)
 	if u == nil {
@@ -125,23 +126,25 @@ func (h *speakerHandler) addSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s := &Speaker{}
+	speaker := Speaker{}
 
 	decoder := schema.NewDecoder()
-	decoder.Decode(s, r.PostForm)
+	err = decoder.Decode(&speaker, r.PostForm)
+	if err != nil {
+		log.Errorf(ctx, "Error when decoding speaker form: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	if s.Name == "" || s.Surname == "" || s.Email == "" {
+	if speaker.Name == "" || speaker.Surname == "" || speaker.Email == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Name, surname and email are mandatory.")
 		return
 	}
 
-	s.Owner = u.Email
+	speaker.Owner = u.Email
 
-	key := datastore.NewKey(ctx, datastoreSpeakersKind, "", 0, nil)
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	id, err := datastore.Put(newCtx, key, s)
-	done()
+	id, err := h.Storage.AddSpeaker(ctx, &speaker)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -149,7 +152,7 @@ func (h *speakerHandler) addSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "%v", id.IntID())
+	fmt.Fprintf(w, "%v", id)
 }
 
 func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +169,8 @@ func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
 
 func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
+	defer done()
 
 	vars := mux.Vars(r)
 	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
@@ -188,18 +193,17 @@ func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	suf := &SpeakerUpdateForm{}
+	suf := SpeakerUpdateForm{}
+
 	decoder := schema.NewDecoder()
-	decoder.Decode(suf, r.PostForm)
+	err = decoder.Decode(&suf, r.PostForm)
+	if err != nil {
+		log.Errorf(ctx, "Error when decoding speaker form: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	k := datastore.NewKey(ctx, datastoreSpeakersKind, "", ID, nil)
-
-	mySpeaker := &Speaker{}
-
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Get(newCtx, k, &mySpeaker)
-	done()
-
+	speaker, err := h.Storage.GetSpeaker(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "No speaker with ID: %v", ID)
 		return
@@ -210,36 +214,35 @@ func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	// Check if it's the owner
-	if mySpeaker.Owner != u.Email && !u.Admin {
+	if speaker.Owner != u.Email && !u.Admin {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, "You're not the owner nor the admin.")
 		return
 	}
 	//TODO: Update speaker with function.
 	if suf.NewName != "" {
-		mySpeaker.Name = suf.NewName
+		speaker.Name = suf.NewName
 	}
 
 	if suf.NewSurname != "" {
-		mySpeaker.Surname = suf.NewSurname
+		speaker.Surname = suf.NewSurname
 	}
 
 	if suf.NewEmail != "" {
-		mySpeaker.Email = suf.NewEmail
+		speaker.Email = suf.NewEmail
 	}
 
 	if suf.NewCompany != "" {
-		mySpeaker.Company = suf.NewCompany
+		speaker.Company = suf.NewCompany
 	}
 
 	if suf.NewAbout != "" {
-		mySpeaker.About = suf.NewAbout
+		speaker.About = suf.NewAbout
 	}
 
-	newCtx, done = context.WithTimeout(ctx, time.Second*2)
-	_, err = datastore.Put(newCtx, k, mySpeaker)
-	done()
+	err = h.Storage.PutSpeaker(ctx, ID, &speaker)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -268,6 +271,8 @@ func updateSpeakerForm(w http.ResponseWriter, r *http.Request) {
 
 func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
+	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
+	defer done()
 
 	vars := mux.Vars(r)
 	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
@@ -283,12 +288,7 @@ func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mySpeaker := Speaker{}
-
-	k := datastore.NewKey(ctx, datastoreSpeakersKind, "", ID, nil)
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Get(newCtx, k, &mySpeaker)
-	done()
+	speaker, err := h.Storage.GetSpeaker(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "Speaker not found.")
 		return
@@ -298,31 +298,30 @@ func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if mySpeaker.Owner != u.Email && !u.Admin {
+
+	if speaker.Owner != u.Email && !u.Admin {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, "You're not the owner nor the admin.")
 		return
 	}
 
-	newCtx, done = context.WithTimeout(ctx, time.Second*2)
-	err = datastore.Delete(newCtx, k)
-	done()
+	err = h.Storage.DeleteSpeaker(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Can't delete speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Speaker deleted successfully.")
 }
 
 func (h *speakerHandler) listSpeakers(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-	speakers := make([]Speaker, 0, 10)
+	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
+	defer done()
 
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	keys, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
-	done()
+	IDs, speakers, err := h.Storage.GetAllSpeakers(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Can't get speakers: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -331,7 +330,7 @@ func (h *speakerHandler) listSpeakers(w http.ResponseWriter, r *http.Request) {
 
 	speakersPublicView := make([]SpeakerPublicView, 0, len(speakers))
 	for index, speaker := range speakers {
-		speakersPublicView = append(speakersPublicView, speaker.GetPublicView(keys[index].IntID()))
+		speakersPublicView = append(speakersPublicView, speaker.GetPublicView(IDs[index]))
 	}
 
 	err = WriteSpeakersPublicView(speakersPublicView, w)
@@ -340,13 +339,6 @@ func (h *speakerHandler) listSpeakers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-}
-
-func GetSpeakerByKey(ctx context.Context, key int64) (Speaker, error) {
-	speaker := Speaker{}
-	speakerKey := datastore.NewKey(ctx, datastoreSpeakersKind, "", key, nil)
-	err := datastore.Get(ctx, speakerKey, &speaker)
-	return speaker, err
 }
 
 func (speaker *Speaker) GetSpeakerFullName() string {

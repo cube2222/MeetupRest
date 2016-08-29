@@ -8,7 +8,10 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/user"
 	"net/url"
+	"time"
 )
+
+var defaultRequestTimeout = time.Second * 4
 
 func init() {
 
