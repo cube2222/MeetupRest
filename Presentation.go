@@ -24,14 +24,14 @@ type Presentation struct {
 	Owner       string
 	Title       string
 	Description string
-	Speakers    string
+	Speakers    []string
 	Voters      []string
 }
 
 type PresentationForm struct {
 	Title       string
 	Description string
-	Speakers    []int64
+	Speakers    string
 }
 
 type PresentationPublicView struct {
@@ -101,19 +101,7 @@ func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	//Decode Speakers
-	speakersId := stringToIntSlice(presentation.Speakers)
-	speakers := []string{}
-	for i := range speakersId {
-		speaker, err := h.Storage.GetSpeaker(ctx, speakersId[i])
-		if err != nil {
-			log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", speakersId[i], err)
-			continue
-		}
-		speakers = append(speakers, speaker.GetSpeakerFullName())
-	}
-
-	presentationPublicView := presentation.GetPublicView(ID, speakers)
+	presentationPublicView := presentation.GetPublicView(ID)
 	err = presentationPublicView.WriteTo(w)
 	if err != nil {
 		log.Errorf(ctx, "Failed to write presentation: %v", err)
@@ -152,7 +140,7 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 	presentation := Presentation{}
 	presentation.Title = puf.Title
 	presentation.Description = puf.Description
-	presentation.Speakers = sliceIntToString(puf.Speakers)
+	presentation.Speakers = strings.Split(puf.Speakers, ",")
 	presentation.Owner = u.Email
 
 	ID, err := h.Storage.AddPresentation(ctx, &presentation)
@@ -221,9 +209,24 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 		presentation.Description = puf.Description
 	}
 
-	// This condidtion is correct?
-	if puf.Speakers[0] != 0 {
-		presentation.Speakers = sliceIntToString(puf.Speakers)
+	speakers := strings.Split(puf.Speakers, ",")
+	same := true
+	for _, item := range speakers {
+		found := false
+		for _, item2 := range presentation.Speakers {
+			if item == item2 {
+				found = true
+				break
+			}
+		}
+		if found == false {
+			same = false
+			break
+		}
+	}
+
+	if !same {
+		presentation.Speakers = puf.Speakers
 	}
 
 	err = h.Storage.PutPresentation(ctx, ID, &presentation)
@@ -298,19 +301,7 @@ func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.R
 	presentationsPublicView := make([]PresentationPublicView, 0, len(presentations))
 
 	for idx, presentation := range presentations {
-		// Fill presentation public views ;)
-		speakersId := stringToIntSlice(presentation.Speakers)
-		speakers := []string{}
-		for i := range speakersId {
-			speaker, err := h.Storage.GetSpeaker(ctx, speakersId[i])
-			if err != nil {
-				log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", speakersId[i], err)
-				continue
-			}
-			speakers = append(speakers, speaker.GetSpeakerFullName())
-			presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(IDs[idx], speakers))
-		}
-
+		presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(IDs[idx]))
 	}
 
 	err = WritePresentationsPublicView(presentationsPublicView, w)
@@ -454,12 +445,12 @@ func contains(slice []string, text string) bool {
 	return false
 }
 
-func (p *Presentation) GetPublicView(key int64, speakers []string) PresentationPublicView {
+func (p *Presentation) GetPublicView(key int64) PresentationPublicView {
 	return PresentationPublicView{
 		Key:         key,
 		Title:       p.Title,
 		Description: p.Description,
-		Speakers:    speakers,
+		Speakers:    p.Speakers,
 		Votes:       len(p.Voters),
 	}
 }
@@ -477,27 +468,4 @@ func (p *PresentationPublicView) WriteTo(w io.Writer) error {
 func WritePresentationsPublicView(presentations []PresentationPublicView, w io.Writer) error {
 	e := json.NewEncoder(w)
 	return e.Encode(presentations)
-}
-
-func sliceIntToString(ints []int64) string {
-	tmpStringArray := []string{}
-	for i := range ints {
-		numString := strconv.FormatInt(ints[i], 10)
-		tmpStringArray = append(tmpStringArray, numString)
-	}
-	return strings.Join(tmpStringArray, ",")
-}
-
-func stringToIntSlice(inputString string) []int64 {
-	intStrings := strings.Split(inputString, ",")
-	ints := []int64{}
-	for i := range intStrings {
-		item := intStrings[i]
-		itemInt, err := strconv.ParseInt(item, 10, 64)
-		if err != nil {
-			continue
-		}
-		ints = append(ints, itemInt)
-	}
-	return ints
 }
