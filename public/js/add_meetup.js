@@ -9,19 +9,23 @@ var AddMeetup = React.createClass({
     },
 
     onDateChange(e) {
-        let state = this.state;
-        state['date'] = e.target.value;
-        // Or (you can use below method to access component in another method)
-        state['date'] = this.dateRef.value;
-        this.setState(state);
+        this.setState({date: e.target.value});
+
+        // let state = this.state;
+        // state['date'] = e.target.value;
+        // // Or (you can use below method to access component in another method)
+        // state['date'] = this.dateRef.value;
+        // this.setState(state);
     },
 
      onVoteTimeEndChange(e) {
-        let state = this.state;
-        state['voteTimeEnd'] = e.target.value;
-        // Or (you can use below method to access component in another method)
-        state['voteTimeEnd'] = this.dateRef.value;
-        this.setState(state);
+        this.setState({voteTimeEnd: e.target.value});
+
+        // let state = this.state;
+        // state['voteTimeEnd'] = e.target.value;
+        // // Or (you can use below method to access component in another method)
+        // state['voteTimeEnd'] = this.dateRef.value;
+        // this.setState(state);
     },
 
     handleTitleChange: function(e) {
@@ -46,7 +50,12 @@ var AddMeetup = React.createClass({
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',
-            data: JSON.stringify({Title: title, Description: description, Date: this.state.date, VoteTimeEnd: this.state.voteTimeEnd})
+            data: JSON.stringify({
+                Title: title,
+                Description: description,
+                Date: new Date(this.state.date).toISOString(),
+                VoteTimeEnd: new Date(this.state.voteTimeEnd).toISOString()
+            })
         });
     },
 
@@ -91,7 +100,7 @@ var AddMeetup = React.createClass({
                                 <div className='col-sm-6'>
                                     <div className='form-group'>
                                         <div className='input-group date'>
-                                            <input className='form-control' type='datetime-local' value={this.state.voteTimeEnd} onChange={this.onVoteTimeEndChange}/>
+                                            <input className='form-control' type='datetime-local' ref={(voteTimeEnd) => {this.dateRef = voteTimeEnd;}}  value={this.state.voteTimeEnd} onChange={this.onVoteTimeEndChange}/>
                                             <span className='input-group-addon'>
                                                 <span className='glyphicon glyphicon-calendar'></span>
                                             </span>
