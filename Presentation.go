@@ -221,7 +221,7 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 				break
 			}
 		}
-		if found == false {
+		if !found {
 			same = false
 			break
 		}
