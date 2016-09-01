@@ -124,7 +124,6 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 
 	puf := PresentationForm{}
 	err := json.NewDecoder(r.Body).Decode(&puf)
-	log.Debugf(ctx, "Body: %s", r.Body)
 	if err != nil {
 		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -141,6 +140,9 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 	presentation.Title = puf.Title
 	presentation.Description = puf.Description
 	presentation.Speakers = strings.Split(puf.Speakers, ",")
+	for index, item := range presentation.Speakers {
+		presentation.Speakers[index] = strings.Trim(item, " ")
+	}
 	presentation.Owner = u.Email
 
 	ID, err := h.Storage.AddPresentation(ctx, &presentation)
@@ -226,7 +228,7 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 	}
 
 	if !same {
-		presentation.Speakers = puf.Speakers
+		presentation.Speakers = speakers
 	}
 
 	err = h.Storage.PutPresentation(ctx, ID, &presentation)
@@ -283,7 +285,7 @@ func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.
 	}
 
 	w.WriteHeader(http.StatusTeapot)
-	fmt.Fprintf(w, "Presentation deleted successfully. %s", ID)
+	fmt.Fprintf(w, "Presentation deleted successfully. %v", ID)
 }
 
 func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.Request) {

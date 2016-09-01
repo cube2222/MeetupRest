@@ -19,6 +19,7 @@ var AddPresentation = React.createClass({
         e.preventDefault();
         var title = this.state.title.trim();
         var description = this.state.description.trim();
+        var speakers = this.state.speakers.trim();
         if (!title || !description) {
             return;
         }
