@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"time"
 
+	"bytes"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
+	"io/ioutil"
 	"strconv"
 )
 
@@ -119,16 +121,12 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseForm()
-	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	meetup := Meetup{}
 
-	err = json.NewDecoder(r.Body).Decode(&meetup)
+	data, _ := ioutil.ReadAll(r.Body)
+	log.Infof(ctx, string(data))
+
+	err := json.NewDecoder(bytes.NewReader(data)).Decode(&meetup)
 	if err != nil {
 		log.Errorf(ctx, "Couldn't decode add meetup request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)

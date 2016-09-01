@@ -1,10 +1,10 @@
-var addMeetup = React.createClass({
+var AddMeetup = React.createClass({
     getInitialState: function() {
       return {
-            title: '',
-            description: '',
-            date : '',
-            voteTimeEnd: ''
+            title: "",
+            description: "",
+            date : "",
+            voteTimeEnd: ""
         }
     },
 
@@ -46,7 +46,7 @@ var addMeetup = React.createClass({
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',
-            data: JSON.stringify({Title: title, Description: description, Date: data, VoteTimeEnd: voteTimeEnd})
+            data: JSON.stringify({Title: title, Description: description, Date: this.state.date, VoteTimeEnd: this.state.voteTimeEnd})
         });
     },
 
@@ -61,11 +61,11 @@ var addMeetup = React.createClass({
                         <div className='form-group'>
                             <label htmlFor='title' className='col-sm-2 control-label'>Title</label>
                             <div className='col-sm-10'>
-                                <input 
-                                    type='text' 
-                                    className='form-control' 
-                                    id='title' name='title' 
-                                    placeholder='Title' 
+                                <input
+                                    type='text'
+                                    className='form-control'
+                                    id='title' name='title'
+                                    placeholder='Title'
                                     value={this.state.title}
                                     onChange={this.handleTitleChange} />
                             </div>
@@ -84,7 +84,7 @@ var addMeetup = React.createClass({
                                     </div>
                                 </div>
                             </div>
-                        </div>    
+                        </div>
                         <div className='form-group'>
                             <label htmlFor='date' className='col-sm-2 control-label'>Vote Time End</label>
                             <div className='col-sm-10'>
@@ -99,19 +99,19 @@ var addMeetup = React.createClass({
                                     </div>
                                 </div>
                             </div>
-                        </div> 
+                        </div>
                         <div className='form-group'>
                             <label htmlFor='description' className='col-sm-2 control-label'>Description</label>
                             <div className='col-sm-10'>
-                                <textarea 
-                                    className='form-control' 
+                                <textarea
+                                    className='form-control'
                                     rows='4'
                                     name='description'
                                     value={this.state.description}
                                     onChange={this.handleDescriptionChange}></textarea>
                             </div>
                         </div>
-                    
+
                         <div className='form-group'>
                             <div className='col-sm-10 col-sm-offset-2'>
                                 <input id='submit' name='submit' type='submit' value='Save' className='btn btn-primary' />
@@ -126,6 +126,6 @@ var addMeetup = React.createClass({
 });
 
 ReactDOM.render(
-  <addMeetup />,
+  <AddMeetup/>,
   document.getElementById('content')
 );
