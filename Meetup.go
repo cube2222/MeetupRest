@@ -128,13 +128,20 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	meetup := Meetup{}
 
-	decoder := schema.NewDecoder()
-	decoder.Decode(&meetup, r.PostForm)
-	if /*m.Date == nil ||*/ meetup.Title == "" || /*m.VoteTimeEnd == nil ||*/ meetup.Description == "" {
+	err = json.NewDecoder(r.Body).Decode(&meetup)
+	if err != nil {
+		log.Errorf(ctx, "Couldn't decode add meetup request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Date, tile vote time end and description are mandatory.")
 		return
 	}
+
+	if /*m.Date == nil ||*/ meetup.Title == "" || /*m.VoteTimeEnd == nil ||*/ meetup.Description == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Date, title, vote time end and description are mandatory.")
+		return
+	}
+	fmt.Printf("Date: %v", meetup.Date)
+	fmt.Printf("Vote time end: %v", meetup.VoteTimeEnd)
 
 	meetup.Owner = u.Email
 
