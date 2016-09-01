@@ -9,14 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	"bytes"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
-	"io/ioutil"
 	"strconv"
 )
 
@@ -123,23 +121,18 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	meetup := Meetup{}
 
-	data, _ := ioutil.ReadAll(r.Body)
-	log.Infof(ctx, string(data))
-
-	err := json.NewDecoder(bytes.NewReader(data)).Decode(&meetup)
+	err := json.NewDecoder(r.Body).Decode(&meetup)
 	if err != nil {
 		log.Errorf(ctx, "Couldn't decode add meetup request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if /*m.Date == nil ||*/ meetup.Title == "" || /*m.VoteTimeEnd == nil ||*/ meetup.Description == "" {
+	if time.Since(meetup.Date) > time.Second*0 || meetup.Title == "" || time.Since(meetup.VoteTimeEnd) > time.Second*0 || meetup.Description == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Date, title, vote time end and description are mandatory.")
+		fmt.Fprint(w, "Date, title, vote time end and description are mandatory. Date and vote time end need to be in the future.")
 		return
 	}
-	fmt.Printf("Date: %v", meetup.Date)
-	fmt.Printf("Vote time end: %v", meetup.VoteTimeEnd)
 
 	meetup.Owner = u.Email
 
