@@ -57,7 +57,7 @@ var addMeetup = React.createClass({
                     <h3 className="panel-title">Update Meetup</h3>
                 </div>
                 <div className="panel-body">
-                    <form className='form-horizontal' role='form' method='post' onSubmit={this.handleSubmit}>
+                    <form className='form-horizontal' role='form' method='post' onSubmit={this.handleSubmit} action='../../meetup/'>
                         <div className='form-group'>
                             <label htmlFor='title' className='col-sm-2 control-label'>Title</label>
                             <div className='col-sm-10'>
