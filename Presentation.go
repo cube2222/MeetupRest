@@ -1,20 +1,18 @@
 package MeetupRest
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
-	"html/template"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
+	"strings"
+
+	"golang.org/x/net/context"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -26,20 +24,21 @@ const datastorePresentationsKind = "Presentations"
 type Presentation struct {
 	Title       string
 	Description string
-	Speaker     int64
+	Speakers    string
 	Voters      []string
 }
 
 type PresentationForm struct {
 	Title       string
 	Description string
+	Speakers    []int64
 }
 
 type PresentationPublicView struct {
 	Key         int64
 	Title       string
 	Description string
-	Speaker     string
+	Speakers    []string
 	Votes       int
 }
 
@@ -56,38 +55,6 @@ type Option struct {
 	Value, Text string
 }
 
-const HTMLAddForm = `
-	<h1>Adding Presentation Form</h1>
-        <form action="/presentation/" method="POST">
-		Title: <input type="text" name="Title"><br>
-		Description: <textarea name="Description"></textarea><br>
-            <div>
-                <label>Speaker:</label>
-                <select name="Speaker">
-                    {{range .}}
-                    <option value="{{.Value}}">{{.Text}}</option>
-                    {{end}}
-                </select>
-            </div>
-            <input type="submit" value="Save">
-        </form>
-`
-
-const HTMLDeleteForm = `
-	<h1>Deleting Presentation Form</h1>
-        <form action="/presentation/" method="DELETE">
-            <div>
-                <label>By Title:</label>
-                <select name="PresentationId">
-                    {{range .}}
-                    <option value="{{.Value}}">{{.Text}}</option>
-                    {{end}}
-                </select>
-            </div>
-            <input type="submit" value="Remove">
-        </form>
-`
-
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
 func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore) error {
 	if m == nil {
@@ -99,8 +66,6 @@ func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore) error 
 	m.HandleFunc("/", h.removePresentation).Methods("DELETE")
 	m.HandleFunc("/{ID}/update", h.updatePresentation).Methods("POST")
 	m.HandleFunc("/list", h.listPresentations).Methods("GET")
-	m.HandleFunc("/form/add", addPresentationForm).Methods("GET")
-	m.HandleFunc("/form/{ID}/delete", removePresentationForm).Methods("GET")
 	m.HandleFunc("/{ID}/upvote", h.upvotePresentation).Methods("GET")
 	m.HandleFunc("/{ID}/downvote", h.downvotePresentation).Methods("GET")
 	m.HandleFunc("/{ID}/hasUpvoted", h.hasUpvoted).Methods("GET")
@@ -136,12 +101,19 @@ func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	speaker, err := h.Storage.GetSpeaker(ctx, presentation.Speaker)
-	if err != nil {
-		log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", ID, err)
+	//Decode Speakers
+	speakersId := stringToIntSlice(presentation.Speakers)
+	speakers := []string{}
+	for i := range speakersId {
+		speaker, err := h.Storage.GetSpeaker(ctx, speakersId[i])
+		if err != nil {
+			log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", speakersId[i], err)
+			continue
+		}
+		speakers = append(speakers, speaker.GetSpeakerFullName())
 	}
 
-	presentationPublicView := presentation.GetPublicView(ID, speaker.GetSpeakerFullName())
+	presentationPublicView := presentation.GetPublicView(ID, speakers)
 	err = presentationPublicView.WriteTo(w)
 	if err != nil {
 		log.Errorf(ctx, "Failed to write presentation: %v", err)
@@ -155,23 +127,25 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
-	err := r.ParseForm()
+	puf := PresentationForm{}
+	err := json.NewDecoder(r.Body).Decode(&puf)
+	log.Debugf(ctx, "Body: %s", r.Body)
 	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: %v", err)
+		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if puf.Title == "" || puf.Speakers[0] == 0 || puf.Description == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Fields Title, Speakers and Description are mandatory!")
 		return
 	}
 
 	p := Presentation{}
-
-	decoder := schema.NewDecoder()
-	decoder.Decode(&p, r.PostForm)
-
-	if p.Title == "" || p.Speaker == 0 || p.Description == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Fields Title, Speaker and Description are mandatory!")
-		return
-	}
+	p.Title = puf.Title
+	p.Description = puf.Description
+	p.Speakers = sliceIntToString(puf.Speakers)
 
 	ID, err := h.Storage.AddPresentation(ctx, &p)
 	if err != nil {
@@ -217,12 +191,17 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if puf.Title != "" {
+	if puf.Title != presentation.Title {
 		presentation.Title = puf.Title
 	}
 
-	if puf.Description != "" {
+	if puf.Description != presentation.Description {
 		presentation.Description = puf.Description
+	}
+
+	// This condidtion is correct?
+	if puf.Speakers[0] != 0 {
+		presentation.Speakers = sliceIntToString(puf.Speakers)
 	}
 
 	err = h.Storage.PutPresentation(ctx, ID, &presentation)
@@ -266,73 +245,6 @@ func (h *presentationHandler) removePresentation(w http.ResponseWriter, r *http.
 	fmt.Fprintf(w, "Presentation deleted successfully. %s", keyInt)
 }
 
-func addPresentationForm(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
-	defer done()
-
-	speakers := make([]Speaker, 0, 10)
-
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	keys, err := datastore.NewQuery(datastoreSpeakersKind).GetAll(newCtx, &speakers)
-	done()
-	if err != nil {
-		log.Errorf(ctx, "Can't get speakers: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	options := make([]Option, 0, len(speakers))
-	for index, speaker := range speakers {
-		options = append(options, Option{
-			Value: strconv.FormatInt(keys[index].IntID(), 10),
-			Text:  speaker.Name + " " + speaker.Surname,
-		})
-	}
-
-	placesPageTmpl := template.Must(template.New("PlacesPage").Parse(HTMLAddForm))
-
-	buf := bytes.Buffer{}
-	if err := placesPageTmpl.Execute(&buf, options); err != nil {
-		fmt.Println("Failed to build page", err)
-	} else {
-		fmt.Fprint(w, buf.String())
-	}
-}
-
-func removePresentationForm(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
-	defer done()
-
-	presentations := make([]Presentation, 0, 10)
-	newCtx, done := context.WithTimeout(ctx, time.Second*2)
-	keys, err := datastore.NewQuery(datastorePresentationsKind).GetAll(newCtx, &presentations)
-	done()
-	if err != nil {
-		log.Errorf(ctx, "Can't get Presentations: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	options := make([]Option, 0, len(presentations))
-	for index, presentation := range presentations {
-		options = append(options, Option{
-			Value: strconv.FormatInt(keys[index].IntID(), 10),
-			Text:  presentation.Title,
-		})
-	}
-
-	placesPageTmpl := template.Must(template.New("PlacesPage").Parse(HTMLDeleteForm))
-
-	buf := bytes.Buffer{}
-	if err := placesPageTmpl.Execute(&buf, options); err != nil {
-		fmt.Println("Failed to build page", err)
-	} else {
-		fmt.Fprint(w, buf.String())
-	}
-}
-
 func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
@@ -345,21 +257,22 @@ func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	speakers := make([]Speaker, len(presentations))
-	for i := 0; i < len(presentations); i++ {
-		speakers[i], err = h.Storage.GetSpeaker(ctx, presentations[i].Speaker)
-		if err != nil {
-			log.Errorf(ctx, "Couldn't get speaker with key: %v, error: %v", presentations[i].Speaker, err)
-		}
-	}
-
-	// We don't want people to see voters. Just the vote count.
 	presentationsPublicView := make([]PresentationPublicView, 0, len(presentations))
-	for index, presentation := range presentations {
-		presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(
-			IDs[index],
-			speakers[index].GetSpeakerFullName(),
-		))
+
+	for idx, presentation := range presentations {
+		// Fill presentation public views ;)
+		speakersId := stringToIntSlice(presentation.Speakers)
+		speakers := []string{}
+		for i := range speakersId {
+			speaker, err := h.Storage.GetSpeaker(ctx, speakersId[i])
+			if err != nil {
+				log.Infof(ctx, "Couldn't get speaker with key: %v, error: %v", speakersId[i], err)
+				continue
+			}
+			speakers = append(speakers, speaker.GetSpeakerFullName())
+			presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(IDs[idx], speakers))
+		}
+
 	}
 
 	err = WritePresentationsPublicView(presentationsPublicView, w)
@@ -503,12 +416,12 @@ func contains(slice []string, text string) bool {
 	return false
 }
 
-func (p *Presentation) GetPublicView(key int64, speaker string) PresentationPublicView {
+func (p *Presentation) GetPublicView(key int64, speakers []string) PresentationPublicView {
 	return PresentationPublicView{
 		Key:         key,
 		Title:       p.Title,
 		Description: p.Description,
-		Speaker:     speaker,
+		Speakers:    speakers,
 		Votes:       len(p.Voters),
 	}
 }
@@ -526,4 +439,27 @@ func (p *PresentationPublicView) WriteTo(w io.Writer) error {
 func WritePresentationsPublicView(presentations []PresentationPublicView, w io.Writer) error {
 	e := json.NewEncoder(w)
 	return e.Encode(presentations)
+}
+
+func sliceIntToString(ints []int64) string {
+	tmpStringArray := []string{}
+	for i := range ints {
+		numString := strconv.FormatInt(ints[i], 10)
+		tmpStringArray = append(tmpStringArray, numString)
+	}
+	return strings.Join(tmpStringArray, ",")
+}
+
+func stringToIntSlice(inputString string) []int64 {
+	intStrings := strings.Split(inputString, ",")
+	ints := []int64{}
+	for i := range intStrings {
+		item := intStrings[i]
+		itemInt, err := strconv.ParseInt(item, 10, 64)
+		if err != nil {
+			continue
+		}
+		ints = append(ints, itemInt)
+	}
+	return ints
 }
