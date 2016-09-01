@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -22,6 +21,7 @@ import (
 const datastorePresentationsKind = "Presentations"
 
 type Presentation struct {
+	Owner       string
 	Title       string
 	Description string
 	Speakers    string
@@ -63,7 +63,7 @@ func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore) error 
 	h := presentationHandler{Storage: Storage}
 	m.HandleFunc("/{ID}/", h.getPresentation).Methods("GET")
 	m.HandleFunc("/", h.addPresentation).Methods("POST")
-	m.HandleFunc("/", h.removePresentation).Methods("DELETE")
+	m.HandleFunc("/{ID}/delete", h.deletePresentation).Methods("GET")
 	m.HandleFunc("/{ID}/update", h.updatePresentation).Methods("POST")
 	m.HandleFunc("/list", h.listPresentations).Methods("GET")
 	m.HandleFunc("/{ID}/upvote", h.upvotePresentation).Methods("GET")
@@ -127,6 +127,13 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/presentation/form/add"))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
 	puf := PresentationForm{}
 	err := json.NewDecoder(r.Body).Decode(&puf)
 	log.Debugf(ctx, "Body: %s", r.Body)
@@ -142,12 +149,13 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	p := Presentation{}
-	p.Title = puf.Title
-	p.Description = puf.Description
-	p.Speakers = sliceIntToString(puf.Speakers)
+	presentation := Presentation{}
+	presentation.Title = puf.Title
+	presentation.Description = puf.Description
+	presentation.Speakers = sliceIntToString(puf.Speakers)
+	presentation.Owner = u.Email
 
-	ID, err := h.Storage.AddPresentation(ctx, &p)
+	ID, err := h.Storage.AddPresentation(ctx, &presentation)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -171,6 +179,13 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 		return
 	}
 
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/presentation/form/update"))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
 	puf := PresentationForm{}
 	err = json.NewDecoder(r.Body).Decode(&puf)
 	log.Debugf(ctx, "Body: %s", r.Body)
@@ -188,6 +203,13 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
+		return
+	}
+
+	// Check if it's the owner
+	if presentation.Owner != u.Email && !u.Admin {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "You're not the owner nor the admin.")
 		return
 	}
 
@@ -214,35 +236,51 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 	fmt.Fprint(w, "Presentation Updated!")
 }
 
-func (h *presentationHandler) removePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
-	params, err := url.ParseQuery(r.URL.RawQuery)
+	vars := mux.Vars(r)
+	ID, err := strconv.ParseInt(vars["ID"], 10, 64)
 	if err != nil {
-		log.Errorf(ctx, "Can't parse query: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
+	}
+
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/presentation/%v/delete", ID))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
 		return
 	}
 
-	presentationID, ok := params["PresentationId"]
-	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Presentation ID must be provided.")
+	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	if err == datastore.ErrNoSuchEntity {
+		fmt.Fprint(w, "Speaker not found.")
+		return
+	}
+	if err != nil {
+		log.Errorf(ctx, "Can't get speaker: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	keyInt, err := strconv.ParseInt(presentationID[0], 10, 32)
+	if presentation.Owner != u.Email && !u.Admin {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "You're not the owner nor the admin.")
+		return
+	}
 
-	err = h.Storage.DeletePresentation(ctx, keyInt)
+	err = h.Storage.DeletePresentation(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusTeapot)
-	fmt.Fprintf(w, "Presentation deleted successfully. %s", keyInt)
+	fmt.Fprintf(w, "Presentation deleted successfully. %s", ID)
 }
 
 func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.Request) {

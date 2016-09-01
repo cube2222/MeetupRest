@@ -14,12 +14,14 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/user"
 	"strconv"
 )
 
 const datastoreMeetupsKind = "Meetups"
 
 type Meetup struct {
+	Owner         string
 	Title         string
 	Description   string
 	Presentations []int64
@@ -110,6 +112,13 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/meetup/form/add"))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
 	err := r.ParseForm()
 	if err != nil {
 		log.Errorf(ctx, "Couldn't parse form: %v", err)
@@ -117,17 +126,19 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := Meetup{}
+	meetup := Meetup{}
 
 	decoder := schema.NewDecoder()
-	decoder.Decode(&m, r.PostForm)
-	if /*m.Date == nil ||*/ m.Title == "" || /*m.VoteTimeEnd == nil ||*/ m.Description == "" {
+	decoder.Decode(&meetup, r.PostForm)
+	if /*m.Date == nil ||*/ meetup.Title == "" || /*m.VoteTimeEnd == nil ||*/ meetup.Description == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Date, tile vote time end and description are mandatory.")
 		return
 	}
 
-	ID, err := h.Storage.AddMeetup(ctx, &m)
+	meetup.Owner = u.Email
+
+	ID, err := h.Storage.AddMeetup(ctx, &meetup)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -159,12 +170,37 @@ func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/meetup/%v/delete", ID))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
+	}
+
+	meetup, err := h.Storage.GetMeetup(ctx, ID)
+	if err == datastore.ErrNoSuchEntity {
+		fmt.Fprint(w, "Speaker not found.")
+		return
+	}
+	if err != nil {
+		log.Errorf(ctx, "Can't get speaker: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if meetup.Owner != u.Email && !u.Admin {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "You're not the owner nor the admin.")
+		return
+	}
+
 	err = h.Storage.DeleteMeetup(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Meetup deleted successfully.")
 }
@@ -179,6 +215,13 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
+	}
+
+	u := user.Current(ctx)
+	if u == nil {
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/meetup/form/update"))
+		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		return
 	}
 
 	err = r.ParseForm()
@@ -200,6 +243,13 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Check if it's the owner
+	if meetup.Owner != u.Email && !u.Admin {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "You're not the owner nor the admin.")
 		return
 	}
 
