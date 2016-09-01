@@ -55,11 +55,11 @@ type MeetupStore interface {
 }
 
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore) error {
+func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore, Metadata MetadataStore) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
-	h := meetupHandler{Storage: Storage}
+	h := meetupHandler{Storage: Storage, Metadata: Metadata}
 	m.HandleFunc("/{ID}/", h.getMeetup).Methods("GET")
 	m.HandleFunc("/", h.addMeetup).Methods("POST")
 	m.HandleFunc("/{id}/delete", h.deleteMeetup).Methods("GET")
@@ -71,7 +71,8 @@ func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore) error {
 }
 
 type meetupHandler struct {
-	Storage MeetupStore
+	Storage  MeetupStore
+	Metadata MetadataStore
 }
 
 func (h *meetupHandler) getMeetup(w http.ResponseWriter, r *http.Request) {

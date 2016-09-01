@@ -25,7 +25,10 @@ func init() {
 	err = RegisterPresentationRoutes(s, &Storage)
 
 	s = m.PathPrefix("/meetup").Subrouter()
-	err = RegisterMeetupRoutes(s, &Storage)
+	err = RegisterMeetupRoutes(s, &Storage, &Storage)
+
+	s = m.PathPrefix("/metadata").Subrouter()
+	err = RegisterMetadataRoutes(s, &Storage)
 
 	m.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("public/"))))
 

@@ -8,6 +8,10 @@ import (
 type GoogleDatastoreStore struct {
 }
 
+type data struct {
+	Content string
+}
+
 func (ds *GoogleDatastoreStore) GetSpeaker(ctx context.Context, ID int64) (Speaker, error) {
 	speaker := Speaker{}
 	key := datastore.NewKey(ctx, datastoreSpeakersKind, "", ID, nil)
@@ -114,4 +118,24 @@ func (ds *GoogleDatastoreStore) AddMeetup(ctx context.Context, meetup *Meetup) (
 func (ds *GoogleDatastoreStore) DeleteMeetup(ctx context.Context, ID int64) error {
 	key := datastore.NewKey(ctx, datastoreMeetupsKind, "", ID, nil)
 	return datastore.Delete(ctx, key)
+}
+
+func (ds *GoogleDatastoreStore) GetData(ctx context.Context, key string) (string, error) {
+	data := data{}
+	keyInternal := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
+	err := datastore.Get(ctx, keyInternal, &data)
+	return data.Content, err
+}
+
+func (ds *GoogleDatastoreStore) PutData(ctx context.Context, key string, value string) error {
+	dataInternal := data{Content: value}
+	keyInternal := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
+	_, err := datastore.Put(ctx, keyInternal, &dataInternal)
+	return err
+}
+
+func (ds *GoogleDatastoreStore) DeleteData(ctx context.Context, key string) error {
+	keyInternal := datastore.NewKey(ctx, datastoreMetadataKind, key, 0, nil)
+	err := datastore.Delete(ctx, keyInternal)
+	return err
 }
