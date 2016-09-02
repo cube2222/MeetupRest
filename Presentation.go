@@ -43,7 +43,6 @@ type PresentationPublicView struct {
 }
 
 type PresentationStore interface {
-	SpeakerStore
 	GetPresentation(ctx context.Context, id int64) (Presentation, error)
 	GetAllPresentations(ctx context.Context) ([]int64, []Presentation, error)
 	PutPresentation(ctx context.Context, id int64, presentation *Presentation) error
@@ -56,11 +55,11 @@ type Option struct {
 }
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
-func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore, MeetupAPIUpdateFunction func() error) error {
+func RegisterPresentationRoutes(m *mux.Router, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func() error) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering presentation routes")
 	}
-	h := presentationHandler{Storage: Storage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction()}
+	h := presentationHandler{PresentationStorage: PresentationStorage, SpeakerStorage: SpeakerStorage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction}
 	m.HandleFunc("/{ID}/", h.getPresentation).Methods("GET")
 	m.HandleFunc("/", h.addPresentation).Methods("POST")
 	m.HandleFunc("/{ID}/delete", h.deletePresentation).Methods("GET")
@@ -74,7 +73,8 @@ func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore, Meetup
 }
 
 type presentationHandler struct {
-	Storage                 PresentationStore
+	PresentationStorage     PresentationStore
+	SpeakerStorage          SpeakerStore
 	MeetupAPIUpdateFunction func() error
 }
 
@@ -90,7 +90,7 @@ func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Req
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
-	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	presentation, err := h.PresentationStorage.GetPresentation(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Couldn't find presentation with id: %v", ID)
@@ -146,7 +146,7 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 	}
 	presentation.Owner = u.Email
 
-	ID, err := h.Storage.AddPresentation(ctx, &presentation)
+	ID, err := h.PresentationStorage.AddPresentation(ctx, &presentation)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -192,7 +192,7 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 		return
 	}
 
-	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	presentation, err := h.PresentationStorage.GetPresentation(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "No presentation with ID: %v", ID)
 		return
@@ -238,7 +238,7 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 		presentation.Speakers = speakers
 	}
 
-	err = h.Storage.PutPresentation(ctx, ID, &presentation)
+	err = h.PresentationStorage.PutPresentation(ctx, ID, &presentation)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
@@ -273,7 +273,7 @@ func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.
 		return
 	}
 
-	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	presentation, err := h.PresentationStorage.GetPresentation(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "Speaker not found.")
 		return
@@ -290,7 +290,7 @@ func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = h.Storage.DeletePresentation(ctx, ID)
+	err = h.PresentationStorage.DeletePresentation(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -312,7 +312,7 @@ func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.R
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
-	IDs, presentations, err := h.Storage.GetAllPresentations(ctx)
+	IDs, presentations, err := h.PresentationStorage.GetAllPresentations(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Can't get presentations: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -353,7 +353,7 @@ func (h *presentationHandler) upvotePresentation(w http.ResponseWriter, r *http.
 		return
 	}
 
-	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	presentation, err := h.PresentationStorage.GetPresentation(ctx, ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
@@ -367,7 +367,7 @@ func (h *presentationHandler) upvotePresentation(w http.ResponseWriter, r *http.
 
 	presentation.Voters = append(presentation.Voters, u.Email)
 
-	err = h.Storage.PutPresentation(ctx, ID, &presentation)
+	err = h.PresentationStorage.PutPresentation(ctx, ID, &presentation)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
@@ -401,7 +401,7 @@ func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *htt
 		return
 	}
 
-	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	presentation, err := h.PresentationStorage.GetPresentation(ctx, ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)
@@ -420,7 +420,7 @@ func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *htt
 		}
 	}
 
-	err = h.Storage.PutPresentation(ctx, ID, &presentation)
+	err = h.PresentationStorage.PutPresentation(ctx, ID, &presentation)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
@@ -453,7 +453,7 @@ func (h *presentationHandler) hasUpvoted(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	presentation, err := h.Storage.GetPresentation(ctx, ID)
+	presentation, err := h.PresentationStorage.GetPresentation(ctx, ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Errorf(ctx, "Couldn't get presentation with key: %v, error: %v", ID, err)

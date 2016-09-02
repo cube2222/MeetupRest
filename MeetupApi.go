@@ -10,7 +10,7 @@ type MeetupCreateData struct {
 	Visibility  string  `json:"visibility"`
 }
 
-func getMeetupUpdateFunction(Storage *MetadataStore) func() error {
+func getMeetupUpdateFunction(Storage MetadataStore) func() error {
 	return func() error {
 		// Here we can use the Storage
 		return nil

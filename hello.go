@@ -24,10 +24,10 @@ func init() {
 	err := RegisterSpeakerRoutes(s, &Storage)
 
 	s = m.PathPrefix("/presentation").Subrouter()
-	err = RegisterPresentationRoutes(s, &Storage, MeetupAPIUpdateFunction)
+	err = RegisterPresentationRoutes(s, &Storage, &Storage, MeetupAPIUpdateFunction)
 
 	s = m.PathPrefix("/meetup").Subrouter()
-	err = RegisterMeetupRoutes(s, &Storage, MeetupAPIUpdateFunction)
+	err = RegisterMeetupRoutes(s, &Storage, &Storage, &Storage, MeetupAPIUpdateFunction)
 
 	s = m.PathPrefix("/metadata").Subrouter()
 	err = RegisterMetadataRoutes(s, &Storage)

@@ -54,11 +54,11 @@ type SpeakerStore interface {
 }
 
 // Get the handler which contains all the speaker handling routes and the corresponding handlers.
-func RegisterSpeakerRoutes(m *mux.Router, Storage SpeakerStore) error {
+func RegisterSpeakerRoutes(m *mux.Router, SpeakerStorage SpeakerStore) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering speaker routes")
 	}
-	h := speakerHandler{Storage: Storage}
+	h := speakerHandler{SpeakerStorage: SpeakerStorage}
 	m.HandleFunc("/{ID}/", h.getSpeaker).Methods("GET")
 	m.HandleFunc("/", h.addSpeaker).Methods("POST")
 	m.HandleFunc("/list", h.listSpeakers).Methods("GET")
@@ -71,7 +71,7 @@ func RegisterSpeakerRoutes(m *mux.Router, Storage SpeakerStore) error {
 }
 
 type speakerHandler struct {
-	Storage SpeakerStore
+	SpeakerStorage SpeakerStore
 }
 
 func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +86,7 @@ func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
-	speaker, err := h.Storage.GetSpeaker(ctx, ID)
+	speaker, err := h.SpeakerStorage.GetSpeaker(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Couldn't find speaker with id: %v", ID)
@@ -144,7 +144,7 @@ func (h *speakerHandler) addSpeaker(w http.ResponseWriter, r *http.Request) {
 
 	speaker.Owner = u.Email
 
-	id, err := h.Storage.AddSpeaker(ctx, &speaker)
+	id, err := h.SpeakerStorage.AddSpeaker(ctx, &speaker)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -203,7 +203,7 @@ func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	speaker, err := h.Storage.GetSpeaker(ctx, ID)
+	speaker, err := h.SpeakerStorage.GetSpeaker(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "No speaker with ID: %v", ID)
 		return
@@ -242,7 +242,7 @@ func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
 		speaker.About = suf.NewAbout
 	}
 
-	err = h.Storage.PutSpeaker(ctx, ID, &speaker)
+	err = h.SpeakerStorage.PutSpeaker(ctx, ID, &speaker)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -288,7 +288,7 @@ func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	speaker, err := h.Storage.GetSpeaker(ctx, ID)
+	speaker, err := h.SpeakerStorage.GetSpeaker(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "Speaker not found.")
 		return
@@ -305,7 +305,7 @@ func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Storage.DeleteSpeaker(ctx, ID)
+	err = h.SpeakerStorage.DeleteSpeaker(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Can't delete speaker: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -321,7 +321,7 @@ func (h *speakerHandler) listSpeakers(w http.ResponseWriter, r *http.Request) {
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
-	IDs, speakers, err := h.Storage.GetAllSpeakers(ctx)
+	IDs, speakers, err := h.SpeakerStorage.GetAllSpeakers(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Can't get speakers: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

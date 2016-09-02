@@ -46,7 +46,6 @@ type MeetupUpdateForm struct {
 }
 
 type MeetupStore interface {
-	PresentationStore
 	GetMeetup(ctx context.Context, id int64) (Meetup, error)
 	GetAllMeetups(ctx context.Context) ([]int64, []Meetup, error)
 	PutMeetup(ctx context.Context, id int64, meetup *Meetup) error
@@ -55,11 +54,11 @@ type MeetupStore interface {
 }
 
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore, MeetupAPIUpdateFunction func() error) error {
+func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func() error) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
-	h := meetupHandler{Storage: Storage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction()}
+	h := meetupHandler{MeetupStorage: MeetupStorage, PresentationStorage: PresentationStorage, SpeakerStorage: SpeakerStorage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction}
 	m.HandleFunc("/{ID}/", h.getMeetup).Methods("GET")
 	m.HandleFunc("/", h.addMeetup).Methods("POST")
 	m.HandleFunc("/{id}/delete", h.deleteMeetup).Methods("GET")
@@ -71,7 +70,9 @@ func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore, MeetupAPIUpdateFun
 }
 
 type meetupHandler struct {
-	Storage                 MeetupStore
+	MeetupStorage           MeetupStore
+	PresentationStorage     PresentationStore
+	SpeakerStorage          SpeakerStore
 	MeetupAPIUpdateFunction func() error
 }
 
@@ -87,7 +88,7 @@ func (h *meetupHandler) getMeetup(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
 	}
 
-	meetup, err := h.Storage.GetMeetup(ctx, ID)
+	meetup, err := h.MeetupStorage.GetMeetup(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Couldn't find meetup with id: %v", ID)
@@ -137,7 +138,7 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	meetup.Owner = u.Email
 
-	ID, err := h.Storage.AddMeetup(ctx, &meetup)
+	ID, err := h.MeetupStorage.AddMeetup(ctx, &meetup)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -182,7 +183,7 @@ func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meetup, err := h.Storage.GetMeetup(ctx, ID)
+	meetup, err := h.MeetupStorage.GetMeetup(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "Speaker not found.")
 		return
@@ -199,7 +200,7 @@ func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Storage.DeleteMeetup(ctx, ID)
+	err = h.MeetupStorage.DeleteMeetup(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Can't delete meetup: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -246,7 +247,7 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 	decoder := schema.NewDecoder()
 	decoder.Decode(muf, r.PostForm)
 
-	meetup, err := h.Storage.GetMeetup(ctx, ID)
+	meetup, err := h.MeetupStorage.GetMeetup(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
 		fmt.Fprint(w, "No such meetup found.")
 		return
@@ -280,7 +281,7 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	}*/
 
-	err = h.Storage.PutMeetup(ctx, ID, &meetup)
+	err = h.MeetupStorage.PutMeetup(ctx, ID, &meetup)
 	if err != nil {
 		log.Errorf(ctx, "Can't create datastore object: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -302,7 +303,7 @@ func (h *meetupHandler) listMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
 
-	keys, meetups, err := h.Storage.GetAllMeetups(ctx)
+	keys, meetups, err := h.MeetupStorage.GetAllMeetups(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Can't get meetups: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
