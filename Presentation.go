@@ -56,11 +56,11 @@ type Option struct {
 }
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
-func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore) error {
+func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore, MeetupAPIUpdateFunction func() error) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering presentation routes")
 	}
-	h := presentationHandler{Storage: Storage}
+	h := presentationHandler{Storage: Storage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction()}
 	m.HandleFunc("/{ID}/", h.getPresentation).Methods("GET")
 	m.HandleFunc("/", h.addPresentation).Methods("POST")
 	m.HandleFunc("/{ID}/delete", h.deletePresentation).Methods("GET")
@@ -74,7 +74,8 @@ func RegisterPresentationRoutes(m *mux.Router, Storage PresentationStore) error 
 }
 
 type presentationHandler struct {
-	Storage PresentationStore
+	Storage                 PresentationStore
+	MeetupAPIUpdateFunction func() error
 }
 
 func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Request) {
@@ -154,6 +155,12 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", ID)
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.Request) {
@@ -239,6 +246,12 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, "Presentation Updated!")
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.Request) {
@@ -286,6 +299,12 @@ func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.
 
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprintf(w, "Presentation deleted successfully. %v", ID)
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.Request) {
@@ -354,6 +373,12 @@ func (h *presentationHandler) upvotePresentation(w http.ResponseWriter, r *http.
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
 	}
 	fmt.Fprint(w, "Upvoted!")
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *http.Request) {
@@ -401,6 +426,12 @@ func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *htt
 		log.Errorf(ctx, "Couldn't put presentation into datastore: %v", err)
 	}
 	fmt.Fprint(w, "Undone upvote!")
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *presentationHandler) hasUpvoted(w http.ResponseWriter, r *http.Request) {

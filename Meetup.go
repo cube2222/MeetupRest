@@ -55,11 +55,11 @@ type MeetupStore interface {
 }
 
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore, Metadata MetadataStore) error {
+func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore, MeetupAPIUpdateFunction func() error) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
-	h := meetupHandler{Storage: Storage, Metadata: Metadata}
+	h := meetupHandler{Storage: Storage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction()}
 	m.HandleFunc("/{ID}/", h.getMeetup).Methods("GET")
 	m.HandleFunc("/", h.addMeetup).Methods("POST")
 	m.HandleFunc("/{id}/delete", h.deleteMeetup).Methods("GET")
@@ -71,8 +71,8 @@ func RegisterMeetupRoutes(m *mux.Router, Storage MeetupStore, Metadata MetadataS
 }
 
 type meetupHandler struct {
-	Storage  MeetupStore
-	Metadata MetadataStore
+	Storage                 MeetupStore
+	MeetupAPIUpdateFunction func() error
 }
 
 func (h *meetupHandler) getMeetup(w http.ResponseWriter, r *http.Request) {
@@ -146,6 +146,12 @@ func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", ID)
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func addMeetupForm(w http.ResponseWriter, r *http.Request) {
@@ -202,6 +208,12 @@ func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Meetup deleted successfully.")
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
@@ -277,6 +289,12 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, "Meetup updated.")
+
+	err = h.MeetupAPIUpdateFunction()
+	if err != nil {
+		log.Errorf(ctx, "Error when updating meetup API: %v", err)
+		return
+	}
 }
 
 func (h *meetupHandler) listMeetups(w http.ResponseWriter, r *http.Request) {
