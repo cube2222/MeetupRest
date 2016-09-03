@@ -59,11 +59,11 @@ func RegisterSpeakerRoutes(m *mux.Router, SpeakerStorage SpeakerStore) error {
 		return errors.New("m may not be nil when registering speaker routes")
 	}
 	h := speakerHandler{SpeakerStorage: SpeakerStorage}
-	m.HandleFunc("/{ID}/", h.getSpeaker).Methods("GET")
-	m.HandleFunc("/", h.addSpeaker).Methods("POST")
-	m.HandleFunc("/list", h.listSpeakers).Methods("GET")
-	m.HandleFunc("/update", h.updateSpeaker).Methods("POST")
-	m.HandleFunc("/{ID}/delete", h.deleteSpeaker).Methods("GET")
+	m.HandleFunc("/{ID}/", h.GetSpeaker).Methods("GET")
+	m.HandleFunc("/", h.AddSpeaker).Methods("POST")
+	m.HandleFunc("/list", h.ListSpeakers).Methods("GET")
+	m.HandleFunc("/update", h.UpdateSpeaker).Methods("POST")
+	m.HandleFunc("/{ID}/delete", h.DeleteSpeaker).Methods("GET")
 	m.HandleFunc("/form/add", addSpeakerForm).Methods("GET")
 	m.HandleFunc("/form/update", updateSpeakerForm).Methods("GET")
 
@@ -74,7 +74,7 @@ type speakerHandler struct {
 	SpeakerStorage SpeakerStore
 }
 
-func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) GetSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -107,7 +107,7 @@ func (h *speakerHandler) getSpeaker(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *speakerHandler) addSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) AddSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -167,7 +167,7 @@ func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
 		"</form>")
 }
 
-func (h *speakerHandler) updateSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) UpdateSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -269,7 +269,7 @@ func updateSpeakerForm(w http.ResponseWriter, r *http.Request) {
 		"</form>")
 }
 
-func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) DeleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -316,7 +316,7 @@ func (h *speakerHandler) deleteSpeaker(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Speaker deleted successfully.")
 }
 
-func (h *speakerHandler) listSpeakers(w http.ResponseWriter, r *http.Request) {
+func (h *speakerHandler) ListSpeakers(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()

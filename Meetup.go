@@ -59,11 +59,11 @@ func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, Presentation
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
 	h := meetupHandler{MeetupStorage: MeetupStorage, PresentationStorage: PresentationStorage, SpeakerStorage: SpeakerStorage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction}
-	m.HandleFunc("/{ID}/", h.getMeetup).Methods("GET")
-	m.HandleFunc("/", h.addMeetup).Methods("POST")
-	m.HandleFunc("/{id}/delete", h.deleteMeetup).Methods("GET")
-	m.HandleFunc("/{ID}/update", h.updateMeetup).Methods("POST")
-	m.HandleFunc("/list", h.listMeetups).Methods("GET")
+	m.HandleFunc("/{ID}/", h.GetMeetup).Methods("GET")
+	m.HandleFunc("/", h.AddMeetup).Methods("POST")
+	m.HandleFunc("/{id}/delete", h.DeleteMeetup).Methods("GET")
+	m.HandleFunc("/{ID}/update", h.UpdateMeetup).Methods("POST")
+	m.HandleFunc("/list", h.ListMeetups).Methods("GET")
 	m.HandleFunc("/form/add", addMeetupForm).Methods("GET")
 
 	return nil
@@ -76,7 +76,7 @@ type meetupHandler struct {
 	MeetupAPIUpdateFunction func() error
 }
 
-func (h *meetupHandler) getMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) GetMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -109,7 +109,7 @@ func (h *meetupHandler) getMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *meetupHandler) addMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -164,7 +164,7 @@ func addMeetupForm(w http.ResponseWriter, r *http.Request) {
 		"</form>")
 }
 
-func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) DeleteMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -217,7 +217,7 @@ func (h *meetupHandler) deleteMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) UpdateMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -298,7 +298,7 @@ func (h *meetupHandler) updateMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *meetupHandler) listMeetups(w http.ResponseWriter, r *http.Request) {
+func (h *meetupHandler) ListMeetups(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()

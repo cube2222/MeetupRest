@@ -60,14 +60,14 @@ func RegisterPresentationRoutes(m *mux.Router, PresentationStorage PresentationS
 		return errors.New("m may not be nil when registering presentation routes")
 	}
 	h := presentationHandler{PresentationStorage: PresentationStorage, SpeakerStorage: SpeakerStorage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction}
-	m.HandleFunc("/{ID}/", h.getPresentation).Methods("GET")
-	m.HandleFunc("/", h.addPresentation).Methods("POST")
-	m.HandleFunc("/{ID}/delete", h.deletePresentation).Methods("GET")
-	m.HandleFunc("/{ID}/update", h.updatePresentation).Methods("POST")
-	m.HandleFunc("/list", h.listPresentations).Methods("GET")
-	m.HandleFunc("/{ID}/upvote", h.upvotePresentation).Methods("GET")
-	m.HandleFunc("/{ID}/downvote", h.downvotePresentation).Methods("GET")
-	m.HandleFunc("/{ID}/hasUpvoted", h.hasUpvoted).Methods("GET")
+	m.HandleFunc("/{ID}/", h.GetPresentation).Methods("GET")
+	m.HandleFunc("/", h.AddPresentation).Methods("POST")
+	m.HandleFunc("/{ID}/delete", h.DeletePresentation).Methods("GET")
+	m.HandleFunc("/{ID}/update", h.UpdatePresentation).Methods("POST")
+	m.HandleFunc("/list", h.ListPresentations).Methods("GET")
+	m.HandleFunc("/{ID}/upvote", h.UpvotePresentation).Methods("GET")
+	m.HandleFunc("/{ID}/downvote", h.DownvotePresentation).Methods("GET")
+	m.HandleFunc("/{ID}/hasUpvoted", h.HasUpvoted).Methods("GET")
 
 	return nil
 }
@@ -78,7 +78,7 @@ type presentationHandler struct {
 	MeetupAPIUpdateFunction func() error
 }
 
-func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) GetPresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -111,7 +111,7 @@ func (h *presentationHandler) getPresentation(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) AddPresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -163,7 +163,7 @@ func (h *presentationHandler) addPresentation(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) UpdatePresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -254,7 +254,7 @@ func (h *presentationHandler) updatePresentation(w http.ResponseWriter, r *http.
 	}
 }
 
-func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) DeletePresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -307,7 +307,7 @@ func (h *presentationHandler) deletePresentation(w http.ResponseWriter, r *http.
 	}
 }
 
-func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) ListPresentations(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -333,7 +333,7 @@ func (h *presentationHandler) listPresentations(w http.ResponseWriter, r *http.R
 	}
 }
 
-func (h *presentationHandler) upvotePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) UpvotePresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -381,7 +381,7 @@ func (h *presentationHandler) upvotePresentation(w http.ResponseWriter, r *http.
 	}
 }
 
-func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) DownvotePresentation(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
@@ -434,7 +434,7 @@ func (h *presentationHandler) downvotePresentation(w http.ResponseWriter, r *htt
 	}
 }
 
-func (h *presentationHandler) hasUpvoted(w http.ResponseWriter, r *http.Request) {
+func (h *presentationHandler) HasUpvoted(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
 	defer done()
