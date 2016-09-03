@@ -54,11 +54,11 @@ type MeetupStore interface {
 }
 
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func(ctx context.Context) error, MeetupAPICreateFunction func(context.Context, string) error) error {
+func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func(ctx context.Context) error, MeetupAPICreateFunction func(context.Context, int64) error) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
-	h := meetupHandler{MeetupStorage: MeetupStorage, PresentationStorage: PresentationStorage, SpeakerStorage: SpeakerStorage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction}
+	h := meetupHandler{MeetupStorage: MeetupStorage, PresentationStorage: PresentationStorage, SpeakerStorage: SpeakerStorage, MeetupAPIUpdateFunction: MeetupAPIUpdateFunction, MeetupAPICreateFunction: MeetupAPICreateFunction}
 	m.HandleFunc("/{ID}/", h.GetMeetup).Methods("GET")
 	m.HandleFunc("/", h.AddMeetup).Methods("POST")
 	m.HandleFunc("/{id}/delete", h.DeleteMeetup).Methods("GET")
@@ -74,7 +74,7 @@ type meetupHandler struct {
 	PresentationStorage     PresentationStore
 	SpeakerStorage          SpeakerStore
 	MeetupAPIUpdateFunction func(context.Context) error
-	MeetupAPICreateFunction func(context.Context, string) error
+	MeetupAPICreateFunction func(context.Context, int64) error
 }
 
 func (h *meetupHandler) GetMeetup(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +149,7 @@ func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", ID)
 
-	err = h.MeetupAPICreateFunction(ctx, meetup.Title)
+	err = h.MeetupAPICreateFunction(ctx, ID)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
