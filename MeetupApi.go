@@ -1,13 +1,13 @@
 package MeetupRest
 
 import (
-	"bytes"
-	"encoding/json"
+	"fmt"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 	"io/ioutil"
 	"net/url"
+	"time"
 )
 
 type MeetupCreateData struct {
@@ -37,20 +37,6 @@ func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 			return err
 		}
 
-		mcd := MeetupCreateData{
-			Name:        meetup.Title,
-			Description: meetup.Description,
-			Time:        meetup.Date.Unix(),
-			Lat:         0.0,
-			Lon:         0.0,
-			RsvpLimit:   25,
-			Visibility:  "members",
-		}
-		data, err := json.Marshal(mcd)
-		if err != nil {
-			return nil
-		}
-		log.Infof(ctx, "Data to send to Meetup.com: %s", data)
 		client := urlfetch.Client(ctx)
 		Url, err := url.Parse("https://api.meetup.com")
 		if err != nil {
@@ -59,16 +45,22 @@ func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		// TODO: Golang-Warsaw in metadata
 		Url.Path += "/Golang-Warsaw/events"
 		parameters := url.Values{}
-		parameters.Add("name", mcd.Name)
+		parameters.Add("name", meetup.Title)
+		parameters.Add("description", meetup.Description)
+		parameters.Add("time", fmt.Sprintf("%v", meetup.Date.UnixNano()/int64(time.Millisecond)))
+		parameters.Add("lat", fmt.Sprintf("%v", 52.2309479))
+		parameters.Add("lon", fmt.Sprintf("%v", 20.9864979))
+		parameters.Add("venue_visibility", "members")
 		parameters.Add("sign", "true")
 		parameters.Add("key", APIKEY)
 		Url.RawQuery = parameters.Encode()
-		res, err := client.Post(Url.String(), "application/json", bytes.NewBuffer(data))
+		log.Infof(ctx, Url.String())
+		res, err := client.Post(Url.String(), "application/json", nil)
 		if err != nil {
 			return err
 		}
 		log.Infof(ctx, "%v", res.StatusCode)
-		data, _ = ioutil.ReadAll(res.Body)
+		data, _ := ioutil.ReadAll(res.Body)
 		log.Infof(ctx, "%s", data)
 		return nil
 	}
