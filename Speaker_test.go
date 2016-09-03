@@ -81,7 +81,7 @@ func TestGetSpeaker(t *testing.T) {
 		t.Error(err)
 	}
 	recorder := httptest.NewRecorder()
-	req, err := inst.NewRequest("GET", "http://localhost:8080/speaker/123123123/", nil)
+	req, err := inst.NewRequest("GET", "http://localhost:8080/123123123/", nil)
 	router.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
@@ -89,6 +89,8 @@ func TestGetSpeaker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Log(result.StatusCode)
+	t.Log(string(data))
 	if result.StatusCode != http.StatusNotFound {
 		t.Errorf("Nonexistent key should not be found. Wrong status. Received: %v with body: %s", result.StatusCode, data)
 	}

@@ -19,7 +19,7 @@ var MetadataManger = React.createClass({
             return;
         }
         $.ajax({
-            url: '/metadata/' + key + '/?value=' + value ,
+            url: '/metadata/' + key + '/?data=' + value ,
             dataType: 'text',
             type: 'POST',
             success: function (val) {
@@ -42,7 +42,7 @@ var MetadataManger = React.createClass({
             dataType: 'text',
             type: 'GET',
             success: function (val) {
-                
+                this.setState({value: val});
             }.bind(this),
                 error: function (xhr, status, err) {
                 console.error(this.props.url, status, err.toString());

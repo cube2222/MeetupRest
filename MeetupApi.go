@@ -16,3 +16,10 @@ func getMeetupUpdateFunction(Storage MetadataStore) func() error {
 		return nil
 	}
 }
+
+func getMeetupCreateFunction(Storage MetadataStore) func() error {
+	return func(Name string) error {
+		// Here we can use the Storage
+		return nil
+	}
+}

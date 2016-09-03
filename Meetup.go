@@ -54,7 +54,7 @@ type MeetupStore interface {
 }
 
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func() error) error {
+func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func() error, MeetupAPICreateFunction func(string) error) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
@@ -74,6 +74,7 @@ type meetupHandler struct {
 	PresentationStorage     PresentationStore
 	SpeakerStorage          SpeakerStore
 	MeetupAPIUpdateFunction func() error
+	MeetupAPICreateFunction func(string) error
 }
 
 func (h *meetupHandler) GetMeetup(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +149,7 @@ func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", ID)
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPICreateFunction(meetup.Title)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return

@@ -19,6 +19,7 @@ func init() {
 	Storage := GoogleDatastoreStore{}
 
 	MeetupAPIUpdateFunction := getMeetupUpdateFunction(&Storage)
+	MeetupAPICreateFunction := getMeetupCreateFunction(&Storage)
 
 	s := m.PathPrefix("/speaker").Subrouter()
 	err := RegisterSpeakerRoutes(s, &Storage)
@@ -27,7 +28,7 @@ func init() {
 	err = RegisterPresentationRoutes(s, &Storage, &Storage, MeetupAPIUpdateFunction)
 
 	s = m.PathPrefix("/meetup").Subrouter()
-	err = RegisterMeetupRoutes(s, &Storage, &Storage, &Storage, MeetupAPIUpdateFunction)
+	err = RegisterMeetupRoutes(s, &Storage, &Storage, &Storage, MeetupAPIUpdateFunction, MeetupAPICreateFunction)
 
 	s = m.PathPrefix("/metadata").Subrouter()
 	err = RegisterMetadataRoutes(s, &Storage)
