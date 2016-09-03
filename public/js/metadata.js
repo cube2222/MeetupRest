@@ -59,8 +59,8 @@ var MetadataManger = React.createClass({
                     <h3 className="panel-title">Metadata manager</h3>
                 </div>
                 <div className="panel-body">
-                    <form className='form-horizontal form-inline' role='form' method='post'>
-                        <div className='col-sm-4'>    
+                    <form className='form-horizontal' role='form' method='post'>
+                        <div className='col-sm-10'>    
                             <div className='form-group'>
                                 <label htmlFor="key">Key</label>
                                 <input className="form-control"
@@ -73,7 +73,7 @@ var MetadataManger = React.createClass({
                             </div>
                         </div>
                         
-                        <div className='col-sm-4'>
+                        <div className='col-sm-10'>
                             <div className='form-group'>
                                 <label htmlFor="value">Value</label>
                                 <input className="form-control"
@@ -86,7 +86,7 @@ var MetadataManger = React.createClass({
                             </div>
                         </div>
                         
-                        <div className='col-sm-4'>
+                        <div className='col-sm-10'>
                             <div className='form-group'>
                                 <div className='col-sm-10 col-sm-offset-2'>
                                     <input id='get' name='get' type='submit' value='Get' className='btn btn-primary' onClick={this.handleGetClick} />
