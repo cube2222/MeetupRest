@@ -54,7 +54,7 @@ type MeetupStore interface {
 }
 
 // Register meetup routes to the router
-func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func() error, MeetupAPICreateFunction func(string) error) error {
+func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func(ctx context.Context) error, MeetupAPICreateFunction func(context.Context, string) error) error {
 	if m == nil {
 		return errors.New("m may not be nil when regitering meetup routes")
 	}
@@ -73,8 +73,8 @@ type meetupHandler struct {
 	MeetupStorage           MeetupStore
 	PresentationStorage     PresentationStore
 	SpeakerStorage          SpeakerStore
-	MeetupAPIUpdateFunction func() error
-	MeetupAPICreateFunction func(string) error
+	MeetupAPIUpdateFunction func(context.Context) error
+	MeetupAPICreateFunction func(context.Context, string) error
 }
 
 func (h *meetupHandler) GetMeetup(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +149,7 @@ func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", ID)
 
-	err = h.MeetupAPICreateFunction(meetup.Title)
+	err = h.MeetupAPICreateFunction(ctx, meetup.Title)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
@@ -211,7 +211,7 @@ func (h *meetupHandler) DeleteMeetup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprint(w, "Meetup deleted successfully.")
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
@@ -292,7 +292,7 @@ func (h *meetupHandler) UpdateMeetup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, "Meetup updated.")
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return

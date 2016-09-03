@@ -18,8 +18,8 @@ func init() {
 	m := mux.NewRouter()
 	Storage := GoogleDatastoreStore{}
 
-	MeetupAPIUpdateFunction := getMeetupUpdateFunction(&Storage)
-	MeetupAPICreateFunction := getMeetupCreateFunction(&Storage)
+	MeetupAPIUpdateFunction := getMeetupUpdateFunction(&Storage, &Storage)
+	MeetupAPICreateFunction := getMeetupCreateFunction(&Storage, &Storage)
 
 	s := m.PathPrefix("/speaker").Subrouter()
 	err := RegisterSpeakerRoutes(s, &Storage)

@@ -55,7 +55,7 @@ type Option struct {
 }
 
 // Get the handler which contains all the presentation handling routes and the corresponding handlers.
-func RegisterPresentationRoutes(m *mux.Router, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func() error) error {
+func RegisterPresentationRoutes(m *mux.Router, PresentationStorage PresentationStore, SpeakerStorage SpeakerStore, MeetupAPIUpdateFunction func(context.Context) error) error {
 	if m == nil {
 		return errors.New("m may not be nil when registering presentation routes")
 	}
@@ -75,7 +75,7 @@ func RegisterPresentationRoutes(m *mux.Router, PresentationStorage PresentationS
 type presentationHandler struct {
 	PresentationStorage     PresentationStore
 	SpeakerStorage          SpeakerStore
-	MeetupAPIUpdateFunction func() error
+	MeetupAPIUpdateFunction func(context.Context) error
 }
 
 func (h *presentationHandler) GetPresentation(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +156,7 @@ func (h *presentationHandler) AddPresentation(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "%v", ID)
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
@@ -247,7 +247,7 @@ func (h *presentationHandler) UpdatePresentation(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, "Presentation Updated!")
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
@@ -300,7 +300,7 @@ func (h *presentationHandler) DeletePresentation(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusTeapot)
 	fmt.Fprintf(w, "Presentation deleted successfully. %v", ID)
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
@@ -374,7 +374,7 @@ func (h *presentationHandler) UpvotePresentation(w http.ResponseWriter, r *http.
 	}
 	fmt.Fprint(w, "Upvoted!")
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
@@ -427,7 +427,7 @@ func (h *presentationHandler) DownvotePresentation(w http.ResponseWriter, r *htt
 	}
 	fmt.Fprint(w, "Undone upvote!")
 
-	err = h.MeetupAPIUpdateFunction()
+	err = h.MeetupAPIUpdateFunction(ctx)
 	if err != nil {
 		log.Errorf(ctx, "Error when updating meetup API: %v", err)
 		return
