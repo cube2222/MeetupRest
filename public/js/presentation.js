@@ -69,7 +69,7 @@ var PresentationList = React.createClass({
   },
 
   login() {
-    window.open(this.state.loginAddress)
+    window.open(this.state.loginAddress, '_self')
   },
 
   getInitialState: function () {
