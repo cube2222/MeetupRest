@@ -84,6 +84,7 @@ func (h *speakerHandler) GetSpeaker(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "ID not valid: %v", vars["ID"])
+		return
 	}
 
 	speaker, err := h.SpeakerStorage.GetSpeaker(ctx, ID)

@@ -1,8 +1,13 @@
 package MeetupRest
 
 import (
+	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
+	"google.golang.org/appengine/aetest"
 	"google.golang.org/cloud/datastore"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 )
@@ -10,7 +15,7 @@ import (
 type speakerStoreMock struct {
 	storage      map[int64]Speaker
 	storageMutex sync.RWMutex
-	indexCounter int
+	indexCounter int64
 }
 
 func (s *speakerStoreMock) GetSpeaker(ctx context.Context, id int64) (Speaker, error) {
@@ -55,10 +60,36 @@ func (s *speakerStoreMock) AddSpeaker(ctx context.Context, speaker *Speaker) (in
 
 func (s *speakerStoreMock) DeleteSpeaker(ctx context.Context, id int64) error {
 	s.storageMutex.Lock()
-	delete(s.storage, s.storage[id])
+	delete(s.storage, id)
 	s.storageMutex.Unlock()
 	return nil
 }
 
-func TestgetSpeaker(t *testing.T) {
+func NewSpeakerStoreMock() *speakerStoreMock {
+	return &speakerStoreMock{storage: make(map[int64]Speaker), storageMutex: sync.RWMutex{}}
+}
+
+func TestGetSpeaker(t *testing.T) {
+	inst, err := aetest.NewInstance(nil)
+	if err != nil {
+		t.Error(err)
+	}
+	defer inst.Close()
+	router := mux.NewRouter()
+	err = RegisterSpeakerRoutes(router, NewSpeakerStoreMock())
+	if err != nil {
+		t.Error(err)
+	}
+	recorder := httptest.NewRecorder()
+	req, err := inst.NewRequest("GET", "http://localhost:8080/speaker/123123123/", nil)
+	router.ServeHTTP(recorder, req)
+
+	result := recorder.Result()
+	data, err := ioutil.ReadAll(result.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	if result.StatusCode != http.StatusNotFound {
+		t.Errorf("Nonexistent key should not be found. Wrong status. Received: %v with body: %s", result.StatusCode, data)
+	}
 }
