@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"net/http"
 	"time"
+
+	"golang.org/x/net/context"
+
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -15,7 +18,6 @@ import (
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
-	"strconv"
 )
 
 const datastoreMeetupsKind = "Meetups"
@@ -27,6 +29,9 @@ type Meetup struct {
 	Presentations []int64
 	Date          time.Time
 	VoteTimeEnd   time.Time
+	EventId       string
+	Lat           float64
+	Lon           float64
 }
 
 type MeetupPublicView struct {

@@ -2,12 +2,13 @@ package MeetupRest
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/urlfetch"
 	"io/ioutil"
 	"net/url"
 	"time"
+
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 )
 
 type MeetupCreateData struct {
@@ -20,8 +21,39 @@ type MeetupCreateData struct {
 	Visibility  string  `json:"venue_visibility"`
 }
 
+const URL = "https://api.meetup.com"
+
 func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage MeetupStore) func(context.Context) error {
 	return func(ctx context.Context) error {
+		APIKEY, err := MetadataStorage.GetData(ctx, "APIKEY")
+		if err != nil {
+			return err
+		}
+
+		_, meetups, err := MeetupStorage.GetAllMeetups(ctx)
+		if err != nil {
+			return err
+		}
+
+		for _, meetup := range meetups {
+			client := urlfetch.Client(ctx)
+			Url, err := url.Parse(URL)
+			if err != nil {
+				return err
+			}
+			Url.Path += "/Golang-Warsaw/events/" + meetup.EventId
+			parameters := prepareParamsUrl(meetup, APIKEY)
+			Url.RawQuery = parameters.Encode()
+			log.Infof(ctx, Url.String())
+
+			// this header is necessary?, How can I do PATH method?
+			res, err := client.Post(Url.String(), "application/json", nil)
+			if err != nil {
+				return err
+			}
+			log.Infof(ctx, "%v", res.StatusCode)
+		}
+
 		return nil
 	}
 }
@@ -38,30 +70,38 @@ func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		}
 
 		client := urlfetch.Client(ctx)
-		Url, err := url.Parse("https://api.meetup.com")
+		Url, err := url.Parse(URL)
 		if err != nil {
 			return err
 		}
 		// TODO: Golang-Warsaw in metadata
 		Url.Path += "/Golang-Warsaw/events"
-		parameters := url.Values{}
-		parameters.Add("name", meetup.Title)
-		parameters.Add("description", meetup.Description)
-		parameters.Add("time", fmt.Sprintf("%v", meetup.Date.UnixNano()/int64(time.Millisecond)))
-		parameters.Add("lat", fmt.Sprintf("%v", 52.2309479))
-		parameters.Add("lon", fmt.Sprintf("%v", 20.9864979))
-		parameters.Add("venue_visibility", "members")
-		parameters.Add("sign", "true")
-		parameters.Add("key", APIKEY)
+		parameters := prepareParamsUrl(meetup, APIKEY)
 		Url.RawQuery = parameters.Encode()
 		log.Infof(ctx, Url.String())
-		res, err := client.Post(Url.String(), "application/json", nil)
+		res, err := client.Post(Url.String(), "application/json", nil) // this header is necessary?
 		if err != nil {
 			return err
 		}
 		log.Infof(ctx, "%v", res.StatusCode)
 		data, _ := ioutil.ReadAll(res.Body)
 		log.Infof(ctx, "%s", data)
+		// TODO: Extract from response 'eventId' and update 'meetup' in datastore!
+
 		return nil
 	}
+}
+
+func prepareParamsUrl(meetup Meetup, apiKey string) url.Values {
+	parameters := url.Values{}
+	parameters.Add("name", meetup.Title)
+	parameters.Add("description", meetup.Description)
+	parameters.Add("time", fmt.Sprintf("%v", meetup.Date.UnixNano()/int64(time.Millisecond)))
+	parameters.Add("lat", fmt.Sprintf("%v", meetup.Lat))
+	parameters.Add("lon", fmt.Sprintf("%v", meetup.Lon))
+	parameters.Add("venue_visibility", "members")
+	parameters.Add("sign", "true")
+	parameters.Add("key", apiKey)
+
+	return parameters
 }
