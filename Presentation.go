@@ -38,8 +38,13 @@ type PresentationPublicView struct {
 	Key         int64
 	Title       string
 	Description string
-	Speakers    []string
+	Speakers    []SpeakerForPresentationPublicView
 	Votes       int
+}
+
+type SpeakerForPresentationPublicView struct {
+	Name string
+	Key  int64
 }
 
 type PresentationStore interface {
@@ -102,7 +107,13 @@ func (h *presentationHandler) GetPresentation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	presentationPublicView := presentation.GetPublicView(ID)
+	speakerKeys := make([]int64, 0, len(presentation.Speakers))
+	for _, speaker := range presentation.Speakers {
+		speakerKey, _ := h.SpeakerStorage.GetSpeakerIdByName(ctx, speaker)
+		speakerKeys = append(speakerKeys, speakerKey)
+	}
+
+	presentationPublicView := presentation.GetPublicView(ID, speakerKeys)
 	err = presentationPublicView.WriteTo(w)
 	if err != nil {
 		log.Errorf(ctx, "Failed to write presentation: %v", err)
@@ -322,7 +333,13 @@ func (h *presentationHandler) ListPresentations(w http.ResponseWriter, r *http.R
 	presentationsPublicView := make([]PresentationPublicView, 0, len(presentations))
 
 	for idx, presentation := range presentations {
-		presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(IDs[idx]))
+		speakerKeys := make([]int64, 0, len(presentation.Speakers))
+		for _, speaker := range presentation.Speakers {
+			speakerKey, _ := h.SpeakerStorage.GetSpeakerIdByName(ctx, speaker)
+			speakerKeys = append(speakerKeys, speakerKey)
+		}
+
+		presentationsPublicView = append(presentationsPublicView, presentation.GetPublicView(IDs[idx], speakerKeys))
 	}
 
 	err = WritePresentationsPublicView(presentationsPublicView, w)
@@ -478,12 +495,17 @@ func contains(slice []string, text string) bool {
 	return false
 }
 
-func (p *Presentation) GetPublicView(key int64) PresentationPublicView {
+func (p *Presentation) GetPublicView(key int64, speakerKeys []int64) PresentationPublicView {
+	speakers := make([]SpeakerForPresentationPublicView, 0, len(p.Speakers))
+	for i, speaker := range p.Speakers {
+		speakers = append(speakers, SpeakerForPresentationPublicView{Name: speaker, Key: speakerKeys[i]})
+	}
+
 	return PresentationPublicView{
 		Key:         key,
 		Title:       p.Title,
 		Description: p.Description,
-		Speakers:    p.Speakers,
+		Speakers:    speakers,
 		Votes:       len(p.Voters),
 	}
 }

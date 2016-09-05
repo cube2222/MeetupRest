@@ -1,8 +1,10 @@
 package MeetupRest
 
 import (
+	"errors"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/datastore"
+	"strings"
 )
 
 type GoogleDatastoreStore struct {
@@ -17,6 +19,21 @@ func (ds *GoogleDatastoreStore) GetSpeaker(ctx context.Context, ID int64) (Speak
 	key := datastore.NewKey(ctx, datastoreSpeakersKind, "", ID, nil)
 	err := datastore.Get(ctx, key, &speaker)
 	return speaker, err
+}
+
+func (ds *GoogleDatastoreStore) GetSpeakerIdByName(ctx context.Context, name string) (int64, error) {
+	speaker := Speaker{}
+	nameParts := strings.Split(name, " ")
+	if len(nameParts) < 2 {
+		return 0, errors.New("Wrong name provided.")
+	}
+	it := datastore.NewQuery(datastoreSpeakersKind).Filter("Name=", nameParts[0]).Filter("Surname=", nameParts[1]).Limit(1).Run(ctx)
+	key, err := it.Next(&speaker)
+	if err != nil {
+		return 0, err
+	}
+
+	return key.IntID(), nil
 }
 
 func (ds *GoogleDatastoreStore) GetAllSpeakers(ctx context.Context) ([]int64, []Speaker, error) {

@@ -51,6 +51,7 @@ type SpeakerStore interface {
 	PutSpeaker(ctx context.Context, id int64, speaker *Speaker) error
 	AddSpeaker(ctx context.Context, speaker *Speaker) (int64, error)
 	DeleteSpeaker(ctx context.Context, id int64) error
+	GetSpeakerIdByName(ctx context.Context, name string) (int64, error)
 }
 
 // Get the handler which contains all the speaker handling routes and the corresponding handlers.

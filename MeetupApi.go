@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 )
 
@@ -72,10 +71,12 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		errorChan = make(chan error)
 		client := urlfetch.Client(ctx)
 		for _, meetup := range meetups {
-			Url, err := url.Parse(URL)
-			if err != nil {
-				return err
-			}
+			go func(meetup Meetup) {
+				Url, err := url.Parse(URL)
+				if err != nil {
+					errorChan <- err
+					return
+				}
 
 				Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.EventId)
 
@@ -84,13 +85,12 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 				parameters = prepareAuthenticationParams(parameters, APIKEY)
 				Url.RawQuery = parameters.Encode()
 
-			r, err := http.NewRequest("PATCH", Url.String(), nil)
-			if err != nil {
-				return err
-			}
-			client := urlfetch.Client(ctx)
-			res, err := client.Do(r)
-				_, err = client.Post(Url.String(), "", nil)
+				r, err := http.NewRequest("PATCH", Url.String(), nil)
+				if err != nil {
+					errorChan <- err
+					return
+				}
+				_, err = client.Do(r)
 				if err != nil {
 					errorChan <- err
 					return
@@ -98,11 +98,15 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 				errorChan <- nil
 			}(meetup)
 		}
+		var err error
 		for i := 0; i < len(meetups); i++ {
-			err := <-errorChan
-			if err != nil {
-				return err
+			internalErr := <-errorChan
+			if internalErr != nil {
+				err = internalErr
 			}
+		}
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -171,11 +175,7 @@ func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		if err != nil {
 			return err
 		}
-		data, err := ioutil.ReadAll(res.Body) //data, _ := ioutil.ReadAll(res.Body)
-		if err != nil {
-			log.Errorf(ctx, err)
-		}
-		log.Infof(ctx, "%s", data)
+		ioutil.ReadAll(res.Body) //data, _ := ioutil.ReadAll(res.Body)
 		// TODO: Extract from response 'eventId' and update 'meetup' in datastore!
 
 		return nil
