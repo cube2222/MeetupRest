@@ -1,6 +1,4 @@
 var PresentationList = React.createClass({
-
-
     getInitialState: function() {
       return {data: []}
     },
@@ -24,7 +22,7 @@ var PresentationList = React.createClass({
           return (
             <tr key={presentation.Key}>
               <td>{presentation.Title}</td>
-              <td>{presentation.Speaker}</td>
+              <td>{presentation.Speakers.join(', ')}</td>
               <td>{presentation.Votes}</td>
               <td><a href={"/public/html/presentation.html?key=" + presentation.Key} className="btn btn-info" role="button">Open</a></td>
             </tr>
@@ -36,7 +34,7 @@ var PresentationList = React.createClass({
                 <thead>
                     <tr>
                         <th>Title</th>
-                        <th>Speaker</th>
+                        <th>Speakers</th>
                         <th>Votes</th>
                     </tr>
                 </thead>

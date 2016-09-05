@@ -83,6 +83,9 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 			Url.RawQuery = parameters.Encode()
 
 			r, err := http.NewRequest("PATCH", Url.String(), nil)
+			if err != nil {
+				return err
+			}
 			client := urlfetch.Client(ctx)
 			res, err := client.Do(r)
 			if err != nil {
