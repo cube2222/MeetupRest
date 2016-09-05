@@ -1,5 +1,5 @@
 application: meetuprest
-version: v1
+version: v2ap
 runtime: go
 api_version: go1
 
