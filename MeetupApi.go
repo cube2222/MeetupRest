@@ -3,6 +3,7 @@ package MeetupRest
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -81,8 +82,9 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 			parameters = prepareAuthenticationParams(parameters, APIKEY)
 			Url.RawQuery = parameters.Encode()
 
+			r, err := http.NewRequest("PATCH", Url.String(), nil)
 			client := urlfetch.Client(ctx)
-			res, err := client.Post(Url.String(), "", nil)
+			res, err := client.Do(r)
 			if err != nil {
 				return err
 			}
