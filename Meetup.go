@@ -30,8 +30,8 @@ type Meetup struct {
 	Date          time.Time
 	VoteTimeEnd   time.Time
 	EventId       string
-	Lat           float64
-	Lon           float64
+	Latitude      float64
+	Longitude     float64
 }
 
 type MeetupPublicView struct {

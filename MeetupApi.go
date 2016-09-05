@@ -15,8 +15,8 @@ type MeetupCreateData struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Time        int64   `json:"time"`
-	Lat         float64 `json:"lat"`
-	Lon         float64 `json:"lon"`
+	Latitude    float64 `json:"lat"`
+	Longitude   float64 `json:"lon"`
 	RsvpLimit   int     `json:"self_rsvp"`
 	Visibility  string  `json:"venue_visibility"`
 }
@@ -29,6 +29,10 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		if err != nil {
 			return err
 		}
+		GroupName, err := MetadataStorage.GetData(ctx, "GroupName")
+		if err != nil {
+			return err
+		}
 
 		_, meetups, err := MeetupStorage.GetAllMeetups(ctx)
 		if err != nil {
@@ -36,18 +40,20 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		}
 
 		for _, meetup := range meetups {
-			client := urlfetch.Client(ctx)
 			Url, err := url.Parse(URL)
 			if err != nil {
 				return err
 			}
-			Url.Path += "/Golang-Warsaw/events/" + meetup.EventId
-			parameters := prepareParamsUrl(meetup, APIKEY)
-			Url.RawQuery = parameters.Encode()
-			log.Infof(ctx, Url.String())
 
-			// this header is necessary?, How can I do PATH method?
-			res, err := client.Post(Url.String(), "application/json", nil)
+			Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.EventId)
+
+			parameters := url.Values{}
+			parameters = prepareMeetupDependentParams(parameters, meetup)
+			parameters = prepareAuthenticationParams(parameters, APIKEY)
+			Url.RawQuery = parameters.Encode()
+
+			client := urlfetch.Client(ctx)
+			res, err := client.Post(Url.String(), "", nil)
 			if err != nil {
 				return err
 			}
@@ -60,48 +66,87 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 
 func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage MeetupStore) func(context.Context, int64) error {
 	return func(ctx context.Context, ID int64) error {
-		APIKEY, err := MetadataStorage.GetData(ctx, "APIKEY")
-		if err != nil {
-			return err
-		}
-		meetup, err := MeetupStorage.GetMeetup(ctx, ID)
-		if err != nil {
-			return err
+		errorChan := make(chan error)
+		APIKEYChan := make(chan string)
+		GroupNameChan := make(chan string)
+		MeetupChan := make(chan Meetup)
+		go func() {
+			APIKEY, err := MetadataStorage.GetData(ctx, "APIKEY")
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			APIKEYChan <- APIKEY
+		}()
+		go func() {
+			GroupName, err := MetadataStorage.GetData(ctx, "GroupName")
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			GroupNameChan <- GroupName
+		}()
+		go func() {
+			meetup, err := MeetupStorage.GetMeetup(ctx, ID)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			MeetupChan <- meetup
+		}()
+
+		var APIKEY string
+		var GroupName string
+		var meetup Meetup
+
+		for i := 0; i < 3; i++ {
+			select {
+			case err := <-errorChan:
+				return err
+			case APIKEY = <-APIKEYChan:
+			case GroupName = <-GroupNameChan:
+			case meetup = <-MeetupChan:
+			}
 		}
 
-		client := urlfetch.Client(ctx)
 		Url, err := url.Parse(URL)
 		if err != nil {
 			return err
 		}
-		// TODO: Golang-Warsaw in metadata
-		Url.Path += "/Golang-Warsaw/events"
-		parameters := prepareParamsUrl(meetup, APIKEY)
+
+		Url.Path += fmt.Sprintf("/%s/events", GroupName)
+
+		parameters := url.Values{}
+		parameters = prepareMeetupDependentParams(parameters, meetup)
+		parameters = prepareAuthenticationParams(parameters, APIKEY)
 		Url.RawQuery = parameters.Encode()
-		log.Infof(ctx, Url.String())
-		res, err := client.Post(Url.String(), "application/json", nil) // this header is necessary?
+
+		client := urlfetch.Client(ctx)
+		res, err := client.Post(Url.String(), "", nil) // this header is necessary?
 		if err != nil {
 			return err
 		}
-		log.Infof(ctx, "%v", res.StatusCode)
-		data, _ := ioutil.ReadAll(res.Body)
-		log.Infof(ctx, "%s", data)
+		ioutil.ReadAll(res.Body) //data, _ := ioutil.ReadAll(res.Body)
 		// TODO: Extract from response 'eventId' and update 'meetup' in datastore!
 
 		return nil
 	}
 }
 
-func prepareParamsUrl(meetup Meetup, apiKey string) url.Values {
-	parameters := url.Values{}
+func prepareMeetupDependentParams(parameters url.Values, meetup Meetup) url.Values {
 	parameters.Add("name", meetup.Title)
 	parameters.Add("description", meetup.Description)
 	parameters.Add("time", fmt.Sprintf("%v", meetup.Date.UnixNano()/int64(time.Millisecond)))
-	parameters.Add("lat", fmt.Sprintf("%v", meetup.Lat))
-	parameters.Add("lon", fmt.Sprintf("%v", meetup.Lon))
+	parameters.Add("lat", fmt.Sprintf("%v", meetup.Latitude))
+	parameters.Add("lon", fmt.Sprintf("%v", meetup.Longitude))
 	parameters.Add("venue_visibility", "members")
+
+	return parameters
+}
+
+func prepareAuthenticationParams(parameters url.Values, APIKey string) url.Values {
 	parameters.Add("sign", "true")
-	parameters.Add("key", apiKey)
+	parameters.Add("key", APIKey)
 
 	return parameters
 }
