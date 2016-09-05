@@ -68,25 +68,36 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 			}
 		}
 
+		errorChan = make(chan error)
+		client := urlfetch.Client(ctx)
 		for _, meetup := range meetups {
-			Url, err := url.Parse(URL)
+			go func(meetup Meetup) {
+				Url, err := url.Parse(URL)
+				if err != nil {
+					errorChan <- err
+					return
+				}
+
+				Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.EventId)
+
+				parameters := url.Values{}
+				parameters = prepareMeetupDependentParams(parameters, meetup)
+				parameters = prepareAuthenticationParams(parameters, APIKEY)
+				Url.RawQuery = parameters.Encode()
+
+				_, err = client.Post(Url.String(), "", nil)
+				if err != nil {
+					errorChan <- err
+					return
+				}
+				errorChan <- nil
+			}(meetup)
+		}
+		for i := 0; i < len(meetups); i++ {
+			err := <-errorChan
 			if err != nil {
 				return err
 			}
-
-			Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.EventId)
-
-			parameters := url.Values{}
-			parameters = prepareMeetupDependentParams(parameters, meetup)
-			parameters = prepareAuthenticationParams(parameters, APIKEY)
-			Url.RawQuery = parameters.Encode()
-
-			client := urlfetch.Client(ctx)
-			res, err := client.Post(Url.String(), "", nil)
-			if err != nil {
-				return err
-			}
-			log.Infof(ctx, "%v", res.StatusCode)
 		}
 
 		return nil
@@ -155,7 +166,11 @@ func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		if err != nil {
 			return err
 		}
-		ioutil.ReadAll(res.Body) //data, _ := ioutil.ReadAll(res.Body)
+		data, err := ioutil.ReadAll(res.Body) //data, _ := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Errorf(ctx, err)
+		}
+		log.Infof(ctx, "%s", data)
 		// TODO: Extract from response 'eventId' and update 'meetup' in datastore!
 
 		return nil
