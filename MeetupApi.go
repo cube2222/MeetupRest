@@ -3,6 +3,7 @@ package MeetupRest
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -71,12 +72,10 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		errorChan = make(chan error)
 		client := urlfetch.Client(ctx)
 		for _, meetup := range meetups {
-			go func(meetup Meetup) {
-				Url, err := url.Parse(URL)
-				if err != nil {
-					errorChan <- err
-					return
-				}
+			Url, err := url.Parse(URL)
+			if err != nil {
+				return err
+			}
 
 				Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.EventId)
 
@@ -85,6 +84,12 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 				parameters = prepareAuthenticationParams(parameters, APIKEY)
 				Url.RawQuery = parameters.Encode()
 
+			r, err := http.NewRequest("PATCH", Url.String(), nil)
+			if err != nil {
+				return err
+			}
+			client := urlfetch.Client(ctx)
+			res, err := client.Do(r)
 				_, err = client.Post(Url.String(), "", nil)
 				if err != nil {
 					errorChan <- err
