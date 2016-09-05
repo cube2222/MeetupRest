@@ -98,7 +98,7 @@ var PresentationList = React.createClass({
       <div className="presentationList">
         <div className="container theme-showcase">
           <h1>{this.state.data.Title}</h1>
-          <h2>{[this.state.data.Speakers].join(', ')}</h2>
+          <h2>{[this.state.data.Speakers].map(item => item.Name)}</h2>
           <h4>Votes: {this.state.data.Votes} <button onClick={this.state.isLoggedIn == "true" ? (this.state.hasUpvoted == "false" ? this.upvote : this.downvote) : this.login} className={this.state.hasUpvoted == "false" ? "btn btn-info" : "btn btn-success"}>{this.state.hasUpvoted == "false" ? "Upvote!" : "Undo upvote."}</button></h4>
           <div className="well">{this.state.data.Description}</div>
         </div>
