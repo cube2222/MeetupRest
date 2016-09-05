@@ -25,18 +25,47 @@ const URL = "https://api.meetup.com"
 
 func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage MeetupStore) func(context.Context) error {
 	return func(ctx context.Context) error {
-		APIKEY, err := MetadataStorage.GetData(ctx, "APIKEY")
-		if err != nil {
-			return err
-		}
-		GroupName, err := MetadataStorage.GetData(ctx, "GroupName")
-		if err != nil {
-			return err
-		}
+		errorChan := make(chan error)
+		APIKEYChan := make(chan string)
+		GroupNameChan := make(chan string)
+		MeetupsChan := make(chan []Meetup)
+		go func() {
+			APIKEY, err := MetadataStorage.GetData(ctx, "APIKEY")
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			APIKEYChan <- APIKEY
+		}()
+		go func() {
+			GroupName, err := MetadataStorage.GetData(ctx, "GroupName")
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			GroupNameChan <- GroupName
+		}()
+		go func() {
+			_, meetups, err := MeetupStorage.GetAllMeetups(ctx)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			MeetupsChan <- meetups
+		}()
 
-		_, meetups, err := MeetupStorage.GetAllMeetups(ctx)
-		if err != nil {
-			return err
+		var APIKEY string
+		var GroupName string
+		var meetups []Meetup
+
+		for i := 0; i < 3; i++ {
+			select {
+			case err := <-errorChan:
+				return err
+			case APIKEY = <-APIKEYChan:
+			case GroupName = <-GroupNameChan:
+			case meetups = <-MeetupsChan:
+			}
 		}
 
 		for _, meetup := range meetups {
