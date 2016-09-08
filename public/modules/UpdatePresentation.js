@@ -85,9 +85,13 @@ const UpdatePresentation = React.createClass({
             dataType: 'json',
             cache: false,
             success: function(data) {
+                        let speakersString = data.Speakers.map(function (i) {
+                            return i.Name;
+                        }).join(', ');
+
                         this.setState({
                             data: data,
-                            speakersText: [data.Speakers].map(speaker => speaker.Name).join(', '),
+                            speakersText: speakersString,
                         });
                     
                     }.bind(this),
@@ -99,11 +103,6 @@ const UpdatePresentation = React.createClass({
 
     notifyFormError(data) {
         console.error('Form error:', data);
-    },
-
-    getNames(arr) {
-        let [[items]] = arr;
-        return items.map(i=> i.Name).join(', ')
     },
 
     render() {
@@ -143,7 +142,7 @@ const UpdatePresentation = React.createClass({
                         <FormsyText
                           name="Speakers"
                           multiLine={true}
-                          value={[this.state.data.Speakers].map(item=> item.Name).join(', ')}
+                          value={this.state.speakersText}
                           rows={2}
                           rowsMax={10}
                           required
