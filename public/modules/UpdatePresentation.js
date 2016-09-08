@@ -8,11 +8,18 @@ import Paper from 'material-ui/Paper';
 import MenuItem from 'material-ui/MenuItem';
 import { FormsyText } from 'formsy-material-ui/lib';
 
-const AddPresentation = React.createClass({
+
+const UpdatePresentation = React.createClass({
     getInitialState() {
         return {
             canSubmit: false,
+            data: {},
+            speakersText: '',
         };
+    },
+
+    componentDidMount: function() {
+        this.getPresentation()
     },
 
     contextTypes: {
@@ -51,7 +58,7 @@ const AddPresentation = React.createClass({
 
     submitForm(data) {
         $.ajax({
-            url: '../../presentation/' ,
+            url: '../../presentation/' + this.props.params.presentationId + '/update' ,
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',
@@ -72,8 +79,31 @@ const AddPresentation = React.createClass({
         });
     },
 
+    getPresentation() {
+        $.ajax({
+            url: '/presentation/' + this.props.params.presentationId + '/',
+            dataType: 'json',
+            cache: false,
+            success: function(data) {
+                        this.setState({
+                            data: data,
+                            speakersText: [data.Speakers].map(speaker => speaker.Name).join(', '),
+                        });
+                    
+                    }.bind(this),
+            error: function(xhr, status, err) {
+                        console.error(this.props.url, status, err.toString());
+                    }.bind(this)
+      });
+    },
+
     notifyFormError(data) {
         console.error('Form error:', data);
+    },
+
+    getNames(arr) {
+        let [[items]] = arr;
+        return items.map(i=> i.Name).join(', ')
     },
 
     render() {
@@ -83,6 +113,7 @@ const AddPresentation = React.createClass({
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
                 <Paper style={paperStyle}>
+                    <h3>Forms for updating Presentation </h3>
                     <Formsy.Form
                       onValid={this.enableSubmitButton}
                       onInvalid={this.disableSubmitButton}
@@ -93,6 +124,7 @@ const AddPresentation = React.createClass({
                           name="Title"
                           validations="isWords"
                           validationError={wordsError}
+                          value={this.state.data.Title}
                           required
                           hintText="What is presentation title?"
                           floatingLabelText="Title"
@@ -100,6 +132,7 @@ const AddPresentation = React.createClass({
 
                         <FormsyText
                           name="Description"
+                          value={this.state.data.Description}
                           required
                           multiLine={true}
                           rows={2}
@@ -107,10 +140,10 @@ const AddPresentation = React.createClass({
                           hintText="Write a few sentences what the subject is presentation"
                           floatingLabelText="Descryption"
                         />
-
                         <FormsyText
                           name="Speakers"
                           multiLine={true}
+                          value={[this.state.data.Speakers].map(item=> item.Name).join(', ')}
                           rows={2}
                           rowsMax={10}
                           required
@@ -131,8 +164,4 @@ const AddPresentation = React.createClass({
     },
 });
 
-export default AddPresentation;
-
-
-
-
+export default UpdatePresentation;

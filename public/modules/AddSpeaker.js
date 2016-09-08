@@ -4,11 +4,12 @@ import Formsy from 'formsy-react';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import RaisedButton from 'material-ui/RaisedButton';
+import TextField from 'material-ui/TextField';
 import Paper from 'material-ui/Paper';
 import MenuItem from 'material-ui/MenuItem';
-import { FormsyText } from 'formsy-material-ui/lib';
+import { FormsyDate, FormsyText, FormsyTime } from 'formsy-material-ui/lib';
 
-const AddPresentation = React.createClass({
+const AddSpeaker = React.createClass({
     getInitialState() {
         return {
             canSubmit: false,
@@ -21,6 +22,8 @@ const AddPresentation = React.createClass({
 
     errorMessages: {
         wordsError: "Please only use letters",
+        urlError: "Please provide a valid URL",
+        emailError: "Please provide a valid email",
     },
 
     styles: {
@@ -51,7 +54,7 @@ const AddPresentation = React.createClass({
 
     submitForm(data) {
         $.ajax({
-            url: '../../presentation/' ,
+            url: '../../speaker/' ,
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',
@@ -78,11 +81,12 @@ const AddPresentation = React.createClass({
 
     render() {
         let {paperStyle, submitStyle } = this.styles;
-        let { wordsError } = this.errorMessages;
+        let { wordsError, urlError, emailError } = this.errorMessages;
 
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
                 <Paper style={paperStyle}>
+                    <h3>Forms for adding Speaker </h3>
                     <Formsy.Form
                       onValid={this.enableSubmitButton}
                       onInvalid={this.disableSubmitButton}
@@ -90,32 +94,45 @@ const AddPresentation = React.createClass({
                       onInvalidSubmit={this.notifyFormError}
                     >
                         <FormsyText
-                          name="Title"
+                          name="Name"
                           validations="isWords"
                           validationError={wordsError}
                           required
-                          hintText="What is presentation title?"
-                          floatingLabelText="Title"
+                          hintText="What is your name?"
+                          floatingLabelText="Name"
                         />
 
                         <FormsyText
-                          name="Description"
+                          name="Surname"
+                          validations="isWords"
+                          validationError={wordsError}
                           required
-                          multiLine={true}
-                          rows={2}
-                          rowsMax={10}
-                          hintText="Write a few sentences what the subject is presentation"
-                          floatingLabelText="Descryption"
+                          hintText="What is your surname?"
+                          floatingLabelText="Surname"
                         />
 
                         <FormsyText
-                          name="Speakers"
+                          name="Email"
+                          validations="isEmail"
+                          validationError={emailError}
+                          required
+                          hintText="What is your email?"
+                          floatingLabelText="Email"
+                        />  
+
+                        <FormsyText
+                          name="Company"
+                          hintText="What is your company name?"
+                          floatingLabelText="Company"
+                        />     
+
+                        <FormsyText
+                          name="About"
                           multiLine={true}
                           rows={2}
                           rowsMax={10}
-                          required
-                          hintText="Name and Surname of presentation speakers"
-                          floatingLabelText="Speakers"
+                          hintText="Write somthing about yourself"
+                          floatingLabelText="About"
                         />
 
                         <RaisedButton
@@ -131,7 +148,7 @@ const AddPresentation = React.createClass({
     },
 });
 
-export default AddPresentation;
+export default AddSpeaker;
 
 
 

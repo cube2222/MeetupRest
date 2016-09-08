@@ -4,11 +4,12 @@ import Formsy from 'formsy-react';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import RaisedButton from 'material-ui/RaisedButton';
+import TextField from 'material-ui/TextField';
 import Paper from 'material-ui/Paper';
 import MenuItem from 'material-ui/MenuItem';
-import { FormsyText } from 'formsy-material-ui/lib';
+import { FormsyDate, FormsyText, FormsyTime } from 'formsy-material-ui/lib';
 
-const AddPresentation = React.createClass({
+const AddMeetup = React.createClass({
     getInitialState() {
         return {
             canSubmit: false,
@@ -51,7 +52,7 @@ const AddPresentation = React.createClass({
 
     submitForm(data) {
         $.ajax({
-            url: '../../presentation/' ,
+            url: '../../meetup/' ,
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',
@@ -83,6 +84,7 @@ const AddPresentation = React.createClass({
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
                 <Paper style={paperStyle}>
+                    <h2>Forms for addin meetup </h2>
                     <Formsy.Form
                       onValid={this.enableSubmitButton}
                       onInvalid={this.disableSubmitButton}
@@ -94,30 +96,28 @@ const AddPresentation = React.createClass({
                           validations="isWords"
                           validationError={wordsError}
                           required
-                          hintText="What is presentation title?"
+                          hintText="What is meetup title?"
                           floatingLabelText="Title"
                         />
-
+                        <FormsyDate
+                          name="date"
+                          required
+                          floatingLabelText="Date"
+                        />
+                        <FormsyDate
+                          name="voteTimeEnd"
+                          required
+                          floatingLabelText="Vote Time End"
+                        />
                         <FormsyText
                           name="Description"
                           required
                           multiLine={true}
                           rows={2}
                           rowsMax={10}
-                          hintText="Write a few sentences what the subject is presentation"
+                          hintText="Description for meetup.com"
                           floatingLabelText="Descryption"
                         />
-
-                        <FormsyText
-                          name="Speakers"
-                          multiLine={true}
-                          rows={2}
-                          rowsMax={10}
-                          required
-                          hintText="Name and Surname of presentation speakers"
-                          floatingLabelText="Speakers"
-                        />
-
                         <RaisedButton
                           style={submitStyle}
                           type="submit"
@@ -131,7 +131,7 @@ const AddPresentation = React.createClass({
     },
 });
 
-export default AddPresentation;
+export default AddMeetup;
 
 
 
