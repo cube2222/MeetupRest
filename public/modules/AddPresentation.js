@@ -1,0 +1,131 @@
+import React from 'react';
+import ReactDOM from 'react-dom'
+import Formsy from 'formsy-react';
+import getMuiTheme from 'material-ui/styles/getMuiTheme';
+import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
+import RaisedButton from 'material-ui/RaisedButton';
+import TextField from 'material-ui/TextField';
+import Paper from 'material-ui/Paper';
+import MenuItem from 'material-ui/MenuItem';
+import { FormsyDate, FormsyText, FormsyTime } from 'formsy-material-ui/lib';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+
+injectTapEventPlugin();
+
+
+const AddPresentation = React.createClass({
+    getInitialState() {
+        return {
+            canSubmit: false,
+        };
+    },
+
+    errorMessages: {
+        wordsError: "Please only use letters",
+        numericError: "Please provide a number",
+        urlError: "Please provide a valid URL",
+    },
+
+    styles: {
+        paperStyle: {
+            width: 300,
+            margin: 'auto',
+            padding: 20,
+        },
+        switchStyle: {
+            marginBottom: 16,
+        },
+        submitStyle: {
+            marginTop: 32,
+        },
+    },
+
+    enableSubmitButton() {
+        this.setState({
+            canSubmit: true,
+        });
+    },
+
+    disableSubmitButton() {
+        this.setState({
+            canSubmit: false,
+        });
+    },
+
+    submitForm(data) {
+        $.ajax({
+            url: '../../presentation/' ,
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            type: 'POST',
+            data: JSON.stringify(data, null, 4),
+            success: function (data) {
+                        this.navigate('/main');
+                    }.bind(this),
+            error: function(xhr, status, err) {
+                        alert(xhr.responseText)
+                        console.error(this.props.url, status, err.toString());
+                    }.bind(this)
+        });
+        
+        alert(JSON.stringify(data, null, 4));
+    },
+
+    notifyFormError(data) {
+        console.error('Form error:', data);
+    },
+
+    render() {
+        let {paperStyle, submitStyle } = this.styles;
+        let { wordsError, numericError, urlError } = this.errorMessages;
+
+        return (
+            <MuiThemeProvider muiTheme={getMuiTheme()}>
+                <Paper style={paperStyle}>
+                    <Formsy.Form
+                      onValid={this.enableSubmitButton}
+                      onInvalid={this.disableSubmitButton}
+                      onValidSubmit={this.submitForm}
+                      onInvalidSubmit={this.notifyFormError}
+                    >
+                        <FormsyText
+                          name="Title"
+                          validations="isWords"
+                          validationError={wordsError}
+                          required
+                          hintText="What is presentation title?"
+                          floatingLabelText="Title"
+                        />
+                        <FormsyText
+                          name="Description"
+                          required
+                          multiLine={true}
+                          rows={2}
+                          rowsMax={10}
+                          hintText="Write a few sentences what the subject is presentation"
+                          floatingLabelText="Descryption"
+                        />
+                        <FormsyText
+                          name="Speakers"
+                          required
+                          hintText="Name and Surname of presentation speakers"
+                          floatingLabelText="Speakers"
+                        />
+                        <RaisedButton
+                          style={submitStyle}
+                          type="submit"
+                          label="Submit"
+                          disabled={!this.state.canSubmit}
+                        />
+                    </Formsy.Form>
+                </Paper>
+            </MuiThemeProvider>
+        );
+    },
+});
+
+export default AddPresentation;
+
+
+
+
