@@ -122,8 +122,9 @@ func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 
 	u := user.Current(ctx)
 	if u == nil {
+		w.WriteHeader(http.StatusForbidden)
 		url, _ := user.LoginURL(ctx, fmt.Sprint("/meetup/form/add"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		fmt.Fprintf(w, url)
 		return
 	}
 

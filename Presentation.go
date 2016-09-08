@@ -129,8 +129,9 @@ func (h *presentationHandler) AddPresentation(w http.ResponseWriter, r *http.Req
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprint("/presentation/form/add"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		w.WriteHeader(http.StatusForbidden)
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/meetup/form/add"))
+		fmt.Fprintf(w, url)
 		return
 	}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom'
+import ReactDOM from 'react-dom';
 import Formsy from 'formsy-react';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
@@ -20,10 +20,12 @@ const AddPresentation = React.createClass({
         };
     },
 
+    contextTypes: {
+        router: React.PropTypes.object
+    },
+
     errorMessages: {
         wordsError: "Please only use letters",
-        numericError: "Please provide a number",
-        urlError: "Please provide a valid URL",
     },
 
     styles: {
@@ -60,15 +62,18 @@ const AddPresentation = React.createClass({
             type: 'POST',
             data: JSON.stringify(data, null, 4),
             success: function (data) {
-                        this.navigate('/main');
+                        this.context.router.push('/main')
                     }.bind(this),
             error: function(xhr, status, err) {
-                        alert(xhr.responseText)
+                        switch (xhr.status) {
+                            case 403:
+                            window.location.href = xhr.responseText
+                            //this.context.router.push(xhr.responseText);
+                            break;
+                        }
                         console.error(this.props.url, status, err.toString());
                     }.bind(this)
         });
-        
-        alert(JSON.stringify(data, null, 4));
     },
 
     notifyFormError(data) {
@@ -77,7 +82,7 @@ const AddPresentation = React.createClass({
 
     render() {
         let {paperStyle, submitStyle } = this.styles;
-        let { wordsError, numericError, urlError } = this.errorMessages;
+        let { wordsError } = this.errorMessages;
 
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
@@ -107,6 +112,9 @@ const AddPresentation = React.createClass({
                         />
                         <FormsyText
                           name="Speakers"
+                          multiLine={true}
+                          rows={2}
+                          rowsMax={10}
                           required
                           hintText="Name and Surname of presentation speakers"
                           floatingLabelText="Speakers"
