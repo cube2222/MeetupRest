@@ -61,7 +61,7 @@ const UpdateMeetup = React.createClass({
 
     submitForm(data) {
         $.ajax({
-            url: '../../meetup/ ' + this.props.params.meetupId + '/update',
+            url: '../../meetup/' + this.props.params.meetupId + '/update',
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',

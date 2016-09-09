@@ -8,6 +8,11 @@ logs
 *.log
 npm-debug.log*
 
+# Output files #
+
+public/bundle.js
+public/bundle.js.map
+
 # Runtime data
 pids
 *.pid
