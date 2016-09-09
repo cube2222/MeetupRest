@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"net/http"
 
+	"golang.org/x/net/context"
+
+	"strconv"
+
 	"github.com/gorilla/mux"
-	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
-	"strconv"
 )
 
 const datastoreSpeakersKind = "Speakers"
@@ -37,12 +38,12 @@ type SpeakerPublicView struct {
 	Company string
 }
 
-type SpeakerUpdateForm struct {
-	NewName    string
-	NewSurname string
-	NewAbout   string
-	NewEmail   string
-	NewCompany string
+type SpeakerForm struct {
+	Name    string
+	Surname string
+	About   string
+	Email   string
+	Company string
 }
 
 type SpeakerStore interface {
@@ -63,9 +64,8 @@ func RegisterSpeakerRoutes(m *mux.Router, SpeakerStorage SpeakerStore) error {
 	m.HandleFunc("/{ID}/", h.GetSpeaker).Methods("GET")
 	m.HandleFunc("/", h.AddSpeaker).Methods("POST")
 	m.HandleFunc("/list", h.ListSpeakers).Methods("GET")
-	m.HandleFunc("/update", h.UpdateSpeaker).Methods("POST")
+	m.HandleFunc("/{ID}/update", h.UpdateSpeaker).Methods("POST")
 	m.HandleFunc("/{ID}/delete", h.DeleteSpeaker).Methods("GET")
-	m.HandleFunc("/form/add", addSpeakerForm).Methods("GET")
 	m.HandleFunc("/form/update", updateSpeakerForm).Methods("GET")
 
 	return nil
@@ -116,31 +116,22 @@ func (h *speakerHandler) AddSpeaker(w http.ResponseWriter, r *http.Request) {
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprint("/speaker/form/add"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
-		return
-	}
-
-	err := r.ParseForm()
-	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/public/#/add_speaker"))
+		fmt.Fprintf(w, url)
 		return
 	}
 
 	speaker := Speaker{}
-
-	decoder := schema.NewDecoder()
-	err = decoder.Decode(&speaker, r.PostForm)
+	err := json.NewDecoder(r.Body).Decode(&speaker)
 	if err != nil {
-		log.Errorf(ctx, "Error when decoding speaker form: %v", err)
+		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if speaker.Name == "" || speaker.Surname == "" || speaker.Email == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Name, surname and email are mandatory.")
+		fmt.Fprint(w, "Fields Name, Surname and Email are mandatory!")
 		return
 	}
 
@@ -157,18 +148,6 @@ func (h *speakerHandler) AddSpeaker(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%v", id)
 }
 
-func addSpeakerForm(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "<h1>Adding Speaker Form</h1>"+
-		"<form action=\"/speaker/\" method=\"POST\">"+
-		"First name: <input type=\"text\" name=\"Name\"><br>"+
-		"Last name: <input type=\"text\" name=\"Surname\"><br>"+
-		"Company: <input type=\"text\" name=\"Company\"><br>"+
-		"Email: <input type=\"email\" name=\"Email\"><br>"+
-		"About: <textarea name=\"About\"></textarea><br>"+
-		"<input type=\"submit\" value=\"Save\">"+
-		"</form>")
-}
-
 func (h *speakerHandler) UpdateSpeaker(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
@@ -183,24 +162,17 @@ func (h *speakerHandler) UpdateSpeaker(w http.ResponseWriter, r *http.Request) {
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprint("/speaker/form/update"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		//Make you sure that ulr is correct.
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/public/#/update_speaker"))
+		fmt.Fprint(w, url)
 		return
 	}
 
-	err = r.ParseForm()
+	suf := SpeakerForm{}
+	err = json.NewDecoder(r.Body).Decode(&suf)
+	log.Debugf(ctx, "Body: %s", r.Body)
 	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	suf := SpeakerUpdateForm{}
-
-	decoder := schema.NewDecoder()
-	err = decoder.Decode(&suf, r.PostForm)
-	if err != nil {
-		log.Errorf(ctx, "Error when decoding speaker form: %v", err)
+		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -224,24 +196,24 @@ func (h *speakerHandler) UpdateSpeaker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//TODO: Update speaker with function.
-	if suf.NewName != "" {
-		speaker.Name = suf.NewName
+	if suf.Name != "" {
+		speaker.Name = suf.Name
 	}
 
-	if suf.NewSurname != "" {
-		speaker.Surname = suf.NewSurname
+	if suf.Surname != "" {
+		speaker.Surname = suf.Surname
 	}
 
-	if suf.NewEmail != "" {
-		speaker.Email = suf.NewEmail
+	if suf.Email != "" {
+		speaker.Email = suf.Email
 	}
 
-	if suf.NewCompany != "" {
-		speaker.Company = suf.NewCompany
+	if suf.Company != "" {
+		speaker.Company = suf.Company
 	}
 
-	if suf.NewAbout != "" {
-		speaker.About = suf.NewAbout
+	if suf.About != "" {
+		speaker.About = suf.About
 	}
 
 	err = h.SpeakerStorage.PutSpeaker(ctx, ID, &speaker)
@@ -285,8 +257,8 @@ func (h *speakerHandler) DeleteSpeaker(w http.ResponseWriter, r *http.Request) {
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprintf("/speaker/%v/delete", ID))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/public/#/delete_speaker/%v/", ID))
+		fmt.Fprintf(w, url)
 		return
 	}
 

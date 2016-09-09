@@ -13,7 +13,6 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/schema"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -43,11 +42,11 @@ type MeetupPublicView struct {
 	VoteTimeEnd   time.Time
 }
 
-type MeetupUpdateForm struct {
-	NewTitle       string
-	NewDescription string
-	NewDate        time.Time
-	NewVoteTimeEnd time.Time
+type MeetupForm struct {
+	Title       string
+	Description string
+	Date        time.Time
+	VoteTimeEnd time.Time
 }
 
 type MeetupStore interface {
@@ -69,7 +68,6 @@ func RegisterMeetupRoutes(m *mux.Router, MeetupStorage MeetupStore, Presentation
 	m.HandleFunc("/{id}/delete", h.DeleteMeetup).Methods("GET")
 	m.HandleFunc("/{ID}/update", h.UpdateMeetup).Methods("POST")
 	m.HandleFunc("/list", h.ListMeetups).Methods("GET")
-	m.HandleFunc("/form/add", addMeetupForm).Methods("GET")
 
 	return nil
 }
@@ -122,8 +120,9 @@ func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 
 	u := user.Current(ctx)
 	if u == nil {
+		w.WriteHeader(http.StatusForbidden)
 		url, _ := user.LoginURL(ctx, fmt.Sprint("/meetup/form/add"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		fmt.Fprintf(w, url)
 		return
 	}
 
@@ -161,15 +160,6 @@ func (h *meetupHandler) AddMeetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addMeetupForm(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "<h1>Adding Meetup Form</h1>"+
-		"<form action=\"/meetup/\" method=\"POST\">"+
-		"Title: <input type=\"text\" name=\"Title\"><br>"+
-		"Description: <textarea name=\"Description\"></textarea><br>"+
-		"<input type=\"submit\" value=\"Save\">"+
-		"</form>")
-}
-
 func (h *meetupHandler) DeleteMeetup(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ctx, done := context.WithTimeout(ctx, defaultRequestTimeout)
@@ -185,7 +175,7 @@ func (h *meetupHandler) DeleteMeetup(w http.ResponseWriter, r *http.Request) {
 	u := user.Current(ctx)
 	if u == nil {
 		url, _ := user.LoginURL(ctx, fmt.Sprintf("/meetup/%v/delete", ID))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		fmt.Fprint(w, url)
 		return
 	}
 
@@ -237,21 +227,19 @@ func (h *meetupHandler) UpdateMeetup(w http.ResponseWriter, r *http.Request) {
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprint("/meetup/form/update"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/public/#/update_meetup/%v", ID))
+		fmt.Fprint(w, url)
 		return
 	}
 
-	err = r.ParseForm()
+	muf := &MeetupForm{}
+	err = json.NewDecoder(r.Body).Decode(&muf)
+	log.Debugf(ctx, "Body: %s", r.Body)
 	if err != nil {
-		log.Errorf(ctx, "Couldn't parse form: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		log.Errorf(ctx, "Couldn't decode JSON: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	muf := &MeetupUpdateForm{}
-	decoder := schema.NewDecoder()
-	decoder.Decode(muf, r.PostForm)
 
 	meetup, err := h.MeetupStorage.GetMeetup(ctx, ID)
 	if err == datastore.ErrNoSuchEntity {
@@ -271,21 +259,17 @@ func (h *meetupHandler) UpdateMeetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if muf.NewTitle != "" {
-		meetup.Title = muf.NewTitle
+	if muf.Title != "" {
+		meetup.Title = muf.Title
 	}
 
-	if muf.NewDescription != "" {
-		meetup.Description = muf.NewDescription
+	if muf.Description != "" {
+		meetup.Description = muf.Description
 	}
 
-	/*if muf.NewDate != nil {
+	meetup.Date = muf.Date
 
-	}
-
-	if muf.NewVoteTimeEnd != nil {
-
-	}*/
+	meetup.VoteTimeEnd = muf.VoteTimeEnd
 
 	err = h.MeetupStorage.PutMeetup(ctx, ID, &meetup)
 	if err != nil {

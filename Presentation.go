@@ -129,8 +129,9 @@ func (h *presentationHandler) AddPresentation(w http.ResponseWriter, r *http.Req
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprint("/presentation/form/add"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		w.WriteHeader(http.StatusForbidden)
+		url, _ := user.LoginURL(ctx, fmt.Sprint("/public/#/add_presentation/"))
+		fmt.Fprint(w, url)
 		return
 	}
 
@@ -189,8 +190,9 @@ func (h *presentationHandler) UpdatePresentation(w http.ResponseWriter, r *http.
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprint("/presentation/form/update"))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		//Make you sure that ulr is correct.
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/public/#/update_presentation/%v/", ID))
+		fmt.Fprint(w, url)
 		return
 	}
 
@@ -279,8 +281,8 @@ func (h *presentationHandler) DeletePresentation(w http.ResponseWriter, r *http.
 
 	u := user.Current(ctx)
 	if u == nil {
-		url, _ := user.LoginURL(ctx, fmt.Sprintf("/presentation/%v/delete", ID))
-		fmt.Fprintf(w, `<a href="%s">Sign in or register</a>`, url)
+		url, _ := user.LoginURL(ctx, fmt.Sprintf("/public/#/delete_presentation/%v/", ID))
+		fmt.Fprint(w, url)
 		return
 	}
 
