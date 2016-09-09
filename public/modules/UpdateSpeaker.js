@@ -108,7 +108,7 @@ const UpdateSpeaker = React.createClass({
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
                 <Paper style={paperStyle}>
-                    <h3>Forms for updating Speaker </h3>
+                    <h3>Updating speaker form</h3>
                     <Formsy.Form
                       onValid={this.enableSubmitButton}
                       onInvalid={this.disableSubmitButton}

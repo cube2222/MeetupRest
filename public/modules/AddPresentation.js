@@ -83,6 +83,7 @@ const AddPresentation = React.createClass({
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
                 <Paper style={paperStyle}>
+                    <h3>Adding presentation form</h3>
                     <Formsy.Form
                       onValid={this.enableSubmitButton}
                       onInvalid={this.disableSubmitButton}

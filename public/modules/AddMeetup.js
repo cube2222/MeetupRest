@@ -84,7 +84,7 @@ const AddMeetup = React.createClass({
         return (
             <MuiThemeProvider muiTheme={getMuiTheme()}>
                 <Paper style={paperStyle}>
-                    <h2>Forms for addin meetup </h2>
+                    <h3>Adding meetup form</h3>
                     <Formsy.Form
                       onValid={this.enableSubmitButton}
                       onInvalid={this.disableSubmitButton}
