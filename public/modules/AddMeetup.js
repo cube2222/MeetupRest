@@ -8,6 +8,12 @@ import TextField from 'material-ui/TextField';
 import Paper from 'material-ui/Paper';
 import MenuItem from 'material-ui/MenuItem';
 import { FormsyDate, FormsyText, FormsyTime } from 'formsy-material-ui/lib';
+import {Gmaps, Marker, InfoWindow, Circle} from 'react-gmaps';
+
+const coords = {
+  lat: 51.5258541,
+  lng: -0.08040660000006028
+};
 
 const AddMeetup = React.createClass({
     getInitialState() {
@@ -26,7 +32,7 @@ const AddMeetup = React.createClass({
 
     styles: {
         paperStyle: {
-            width: 300,
+            width: 880,
             margin: 'auto',
             padding: 20,
         },
@@ -77,6 +83,24 @@ const AddMeetup = React.createClass({
         console.error('Form error:', data);
     },
 
+    onMapCreated(map) {
+        map.setOptions({
+            disableDefaultUI: true
+        });
+    },
+
+    onDragEnd(e) {
+        console.log('onDragEnd', e);
+    },
+
+    onCloseClick() {
+        console.log('onCloseClick');
+    },
+
+    onClick(e) {
+        console.log('onClick', e);
+    },
+
     render() {
         let {paperStyle, submitStyle } = this.styles;
         let { wordsError } = this.errorMessages;
@@ -118,6 +142,31 @@ const AddMeetup = React.createClass({
                           hintText="Description for meetup.com"
                           floatingLabelText="Descryption"
                         />
+                        <Gmaps
+                            width={'800px'}
+                            height={'600px'}
+                            lat={coords.lat}
+                            lng={coords.lng}
+                            zoom={12}
+                            loadingMessage={'Be happy'}
+                            params={{v: '3.exp', key: 'AIzaSyByTOp78icwH2oRmfcC9zTarst10suM42I'}}
+                            onMapCreated={this.onMapCreated}>
+                            <Marker
+                            lat={coords.lat}
+                            lng={coords.lng}
+                            draggable={true}
+                            onDragEnd={this.onDragEnd} />
+                            <InfoWindow
+                            lat={coords.lat}
+                            lng={coords.lng}
+                            content={'Hello, React :)'}
+                            onCloseClick={this.onCloseClick} />
+                            <Circle
+                            lat={coords.lat}
+                            lng={coords.lng}
+                            radius={500}
+                            onClick={this.onClick} />
+                        </Gmaps>
                         <RaisedButton
                           style={submitStyle}
                           type="submit"
