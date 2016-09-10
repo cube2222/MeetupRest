@@ -101,6 +101,10 @@ const AddMeetup = React.createClass({
         });
     },
 
+    onDragEnd(e) {
+        console.log('onDragEnd', e);
+    },
+
     /**
      * When a suggest got selected
      * @param  {Object} suggest The suggest
