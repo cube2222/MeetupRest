@@ -1,8 +1,8 @@
 package MeetupRest
 
 import (
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -19,6 +19,10 @@ type MeetupCreateData struct {
 	Longitude   float64 `json:"lon"`
 	RsvpLimit   int     `json:"self_rsvp"`
 	Visibility  string  `json:"venue_visibility"`
+}
+
+type MeetupCreateResponse struct {
+	ID string `json:"id"`
 }
 
 const URL = "https://api.meetup.com"
@@ -78,12 +82,14 @@ func getMeetupUpdateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 					return
 				}
 
-				Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.EventId)
+				Url.Path += fmt.Sprintf("/%s/events/%s", GroupName, meetup.ExternalID)
 
 				parameters := url.Values{}
 				parameters = prepareMeetupDependentParams(parameters, meetup)
 				parameters = prepareAuthenticationParams(parameters, APIKEY)
 				Url.RawQuery = parameters.Encode()
+
+				// TODO: Do some fun stuff. Like presentation scheduling.
 
 				r, err := http.NewRequest("PATCH", Url.String(), nil)
 				if err != nil {
@@ -175,10 +181,15 @@ func getMeetupCreateFunction(MetadataStorage MetadataStore, MeetupStorage Meetup
 		if err != nil {
 			return err
 		}
-		ioutil.ReadAll(res.Body) //data, _ := ioutil.ReadAll(res.Body)
-		// TODO: Extract from response 'eventId' and update 'meetup' in datastore!
+		meetupResponse := MeetupCreateResponse{}
+		err = json.NewDecoder(res.Body).Decode(&meetupResponse)
+		if err != nil {
+			return err
+		}
 
-		return nil
+		meetup.ExternalID = meetupResponse.ID
+		err = MeetupStorage.PutMeetup(ctx, ID, &meetup)
+		return err
 	}
 }
 

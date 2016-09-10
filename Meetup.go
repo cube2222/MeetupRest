@@ -28,9 +28,9 @@ type Meetup struct {
 	Presentations []int64
 	Date          time.Time
 	VoteTimeEnd   time.Time
-	EventId       string
 	Latitude      float64
 	Longitude     float64
+	ExternalID    string
 }
 
 type MeetupPublicView struct {
