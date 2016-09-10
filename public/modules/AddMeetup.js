@@ -102,7 +102,10 @@ const AddMeetup = React.createClass({
     },
 
     onDragEnd(e) {
-        console.log('onDragEnd', e);
+        this.setState({
+            lat: e.latLng.lat(),
+            lng: e.latLng.lng(),
+        });        
     },
 
     /**
