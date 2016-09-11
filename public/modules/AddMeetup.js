@@ -10,7 +10,6 @@ import MenuItem from 'material-ui/MenuItem';
 import TextField from 'material-ui/TextField';
 import { FormsyDate, FormsyText, FormsyTime } from 'formsy-material-ui/lib';
 import {Gmaps, Marker, InfoWindow, Circle} from 'react-gmaps';
-import InlineBlock from 'react-inline-block';
 import Geosuggest from 'react-geosuggest';
 
 
