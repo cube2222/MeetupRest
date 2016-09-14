@@ -73,7 +73,17 @@ const AddMeetup = React.createClass({
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             type: 'POST',
-            data: JSON.stringify(data, null, 4),
+            data: function (data) {
+                var prepData = {
+                    Title: data.Title,
+                    Date: data.date,
+                    VoteTimeEnd: data.voteTimeEnd,
+                    DescriptionL data.Description,
+                    Lat: this.state.lat,
+                    Lng: this.state.lng,
+                };
+                JSON.stringify(prepData, null, 4);
+            },
             success: function (data) {
                         //TODO: add correct redirect url
                         this.context.router.push('/main')
