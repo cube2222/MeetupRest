@@ -78,7 +78,7 @@ const AddMeetup = React.createClass({
                     Title: data.Title,
                     Date: data.date,
                     VoteTimeEnd: data.voteTimeEnd,
-                    DescriptionL data.Description,
+                    Description: data.Description,
                     Lat: this.state.lat,
                     Lng: this.state.lng,
                 };

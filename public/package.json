@@ -14,8 +14,9 @@
     "formsy-material-ui": "^0.5.0",
     "formsy-react": "^0.18.1",
     "react": "^15.3.1",
+    "react-addons-shallow-compare": "^0.14.6",
     "react-dom": "^15.3.1",
-    "react-geosuggest": "^1.25.0",
+    "react-geosuggest": "^1.25.1",
     "react-gmaps": "^1.5.0",
     "react-router": "^2.0.0",
     "react-tap-event-plugin": "^1.0.0"
